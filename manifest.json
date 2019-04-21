@@ -5,6 +5,7 @@
 	"version": "0.0.1",
 	"content_scripts": [{
 		"matches": ["*://zaycev.net/*", "*://localhost/"],
+		"css": ["content.css"],
 		"js": ["content.js"]
 	}],
   	"browser_action": {

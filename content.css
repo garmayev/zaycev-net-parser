@@ -1,0 +1,11 @@
+.btn {
+	padding: 12px 12px 5px 10px; 
+	position: absolute; 
+	font-weight: 700; 
+	cursor:pointer; 
+	right: 50px; 
+	top: 0; 
+}
+div[iteprop="track"]:hover .btn {
+	display: block;
+}
