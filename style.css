@@ -1,0 +1,26 @@
+html, body {
+	display: flex;
+	flex-direction: column;
+	min-width: 500px;
+	max-height: 800px;
+}
+.modal-content {
+	padding: 10px;
+}
+.btn {
+	width: 200px;
+	height: 30px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	text-decoration: none;
+	color: #fff;
+	transition: background .4s;
+}
+
+.btn-success {
+	background: #0e890c;
+}
+.btn-success:hover {
+	background: #1aa318;
+}
