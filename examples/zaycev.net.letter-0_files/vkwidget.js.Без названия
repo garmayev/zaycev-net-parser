@@ -1,0 +1,17 @@
+$(function () {
+    var counter = 0;
+    function getVKWidtget() {
+        counter++;
+        try {
+            if (document.getElementById("vk_group")) {
+                VK.Widgets.Group("vk_group", {mode: 0, width: "216"}, 34001496);
+            }
+        } catch (e) {
+            if (counter <= 120) setTimeout(function() {
+                getVKWidtget();
+            }, 500);
+        }        
+    }
+    
+    getVKWidtget();
+});

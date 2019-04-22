@@ -1,0 +1,69 @@
+$(function () {
+	var next = 2,
+			pagesp = parseInt($(".columns-block-tracks").data("pages")),
+			pages = isNaN(pagesp) ? 1 : pagesp,
+			lastKey = "top_1", tracks = [],
+			trackEls = $("#top_1 [data-dkey]");
+	ZINA.Musicset.Connected = [];
+	ZINA.Musicset.init($(".columns-block-tracks"));
+	for (var i = 0; i < trackEls.length; i++) {
+		tracks[tracks.length] = {
+			"value": $(trackEls[i]).data("dkey"),
+			"activity" : "streaming"
+		};
+		tracks[tracks.length] = {
+			"value": $(trackEls[i]).data("dkey"),
+			"activity" : "download"
+		};
+	}
+	ZINA.geoban.queue(tracks);
+	ZINA.geoban.checkAdded();
+	function buttonStream() {
+		var w = $(window);
+		$('.stream-end-inner').on('click', function(){
+			if ($(".stream-footer").hasClass("has-more-items")) {
+				$(".stream-footer").addClass("stream-loading");
+				$.ajax({
+					url: "/top/more.html",
+					data: {"page": next},
+					dataType: "html",
+					success: function(data) {
+						var appended = $(data), tracks = [];
+						appended.appendTo(".top-tracks-continue");
+						ZINA.Musicset.init(appended);
+						$("#top_" + next + " [data-dkey]", appended).each(function() {
+							tracks[tracks.length] = {
+								"value": $(this).data("dkey"),
+								"activity" : "streaming"
+							};
+							tracks[tracks.length] = {
+								"value": $(this).data("dkey"),
+								"activity" : "download"
+							};
+						});
+						ZINA.geoban.check(tracks);
+
+						var nextKey = "top_" + next;
+						ZINA.Musicset.Connected[lastKey] = nextKey;
+						lastKey = nextKey;
+
+						if (next == pages) {
+							$(".stream-footer").removeClass("has-more-items");
+						}
+						next++;
+						$(".stream-footer").removeClass("stream-loading");
+					},
+					error: function () {
+						$(".stream-footer").removeClass("has-more-items").removeClass("stream-loading");
+					}
+				});
+			}
+		});
+	}
+	buttonStream();
+
+	$(".main-description__switch").click(function() {
+		$(".main-description__switch").toggle();
+		$(".main-description__text").toggleClass("main-description__text_short");
+	});
+});

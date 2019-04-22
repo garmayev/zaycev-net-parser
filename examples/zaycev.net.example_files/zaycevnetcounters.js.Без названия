@@ -1,0 +1,14 @@
+// LiveInternet counter
+new Image().src = "//counter.yadro.ru/hit;zaycev?r" + escape(document.referrer) + ((typeof(screen)=="undefined")?"" : ";s"+screen.width+"*"+screen.height+"*" + (screen.colorDepth?screen.colorDepth:screen.pixelDepth)) + ";u"+escape(document.URL) + ";h"+escape(document.title.substring(0,80)) + ";" +Math.random();
+if (document.domain === 'zaycev.net') {
+
+	// Rating@Mail.ru counter
+	var _tmr = _tmr || [];
+	_tmr.push({id: "2615436",  type: "pageView", start: (new Date()).getTime()});
+	(function (d, w) {
+	   var ts = d.createElement("script"); ts.async = true;
+	   ts.src = (d.location.protocol == "https:" ? "https:" : "http:") + "//top-fwz1.mail.ru/js/code.js";
+	   var f = function () {var s = d.getElementsByTagName("script")[0]; s.parentNode.insertBefore(ts, s);};
+	   if (w.opera == "[object Opera]") { d.addEventListener("DOMContentLoaded", f, false); } else { f(); }
+	})(document, window);
+}

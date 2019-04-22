@@ -1,0 +1,185 @@
+(function (globals, Backbone) {
+
+	var typicalWindowTitle = document.title,
+		quartilePlayed = 0,
+		isMobile = $(".container-zaycev").length != 0;
+	function sendStat(name, trackId){
+		$.ajax({
+			url: "/userAction/publish",
+			data: {"action" : name, "track_id" : trackId, "is_mobile" : isMobile},
+			dataType: "json"
+		});
+	}
+	var Player = Backbone.Model.extend({
+		initialize: function () {
+			var player = this,
+					dfd = $.Deferred();
+			
+			ZINA.Player.on("ready", dfd.resolve);
+			player.initPromise = dfd.promise();
+
+			ZINA.Player.on("complete", function () {
+				player.trigger("player:complete");
+				quartilePlayed = 0;
+			});
+
+			ZINA.Player.on("reset", function () {
+				player.trigger("player:reset");
+				$('link[rel="shortcut icon"]').attr('href', '/static/images/new-favicon/favicon.ico');
+				$('link[rel="apple-touch-icon"]').attr('href', '/static/images/new-favicon/apple-touch-icon.png');
+				document.title = typicalWindowTitle;
+			});
+
+			ZINA.Player.on("pauseAll", function () {
+				player.trigger("player:pauseAll");
+				$('link[rel="shortcut icon"]').attr('href', '/static/images/new-favicon/favicon.ico');
+				$('link[rel="apple-touch-icon"]').attr('href', '/static/images/new-favicon/apple-touch-icon.png');
+				document.title = typicalWindowTitle;
+			});
+
+			ZINA.Player.on("stop", function () {
+				player.trigger("player:stop");
+			});
+
+			ZINA.Player.on("tick", function (id, data, progress) {
+				if (progress.played >= 99) {
+					ZINA.Player.stop();
+					ZINA.Player.complete();
+				} else {
+					player.trigger("player:tick", id, progress);
+				}
+
+				var quartile = Math.floor(progress.played / 25);
+				if (quartile > quartilePlayed) {
+					quartilePlayed = quartile;
+					if (quartilePlayed == 1) {
+						sendStat("firstQuartile", id);
+					} else if (quartilePlayed == 2) {
+						sendStat("midpoint", id);
+					} else if (quartilePlayed == 3) {
+						sendStat("thirdQuartile", id);
+					}
+				}
+			});
+
+			ZINA.Player.on("error", function (msg) {
+				player.trigger("player:error", msg);
+				if (msg == "init") {
+					$(".musicset-track-list__error").show();
+				}
+			});
+
+			// если плеер был уже проинициализирован
+			if (ZINA.Player.readyFired) {
+				dfd.resolve();
+			} else {
+				ZINA.Player.init();
+			}
+		},
+
+		setPosition: function (pos) {
+			ZINA.Player.setPosition(pos);
+		},
+
+		play: function (obj) {
+			if (ZINA.defaults("ZINA.Player", "geoBan", false) && !obj.unbanned) {
+				var me = this;
+				showGeoBanWindow().on("dialogclose", function () {
+					me.trigger("player:stop");
+				});
+				setTimeout(function () {
+					me.trigger("player:stop");
+				}, 100);
+			} else {
+				var me = this.trigger("player:play", obj);
+	
+				var request = ZINA.Captcha.process(function () {
+					return $.ajax({
+						url: obj.url,
+						dataType: "json"
+					});
+				});
+
+				request
+					.done(function (data) {
+						if (data.redirect && data.redirect != '') {
+							location.href = data.redirect;
+						}
+						if (data.url) {
+							ZINA.Player.doPlay(data.url, obj.id);
+							var trackBlock = $('div').find("[data-id='" + obj.id + "']").first(),
+									trackName = trackBlock.find(".musicset-track__artist").text() + ' — ' + trackBlock.find(".musicset-track__track-name").text();
+							$('link[rel="shortcut icon"]').attr('href', '/static/images/new-favicon/play/favicon.ico');
+							$('link[rel="apple-touch-icon"]').attr('href', '/static/images/new-favicon/play/apple-touch-icon.png');
+							document.title = trackName;
+
+						} else {
+							// error
+							me.trigger("player:stop");
+						}
+					})
+					.fail(function (jqXHR, textStatus, errorThrown) {
+						if (jqXHR && jqXHR.status) {
+							var track = $(".musicset-track_play"),
+								trackName = track.find(".musicset-track__artist").text();
+							if (trackName.length > 0) {
+								trackName = '<p class="deletedTrack"><span class="deletedTrack__name">' + trackName + '</span>' + " - " + track.find(".musicset-track__track-name").text() + '</p>';
+							}
+
+							var textMessage = jqXHR.status === 404 ?
+								'Мы не смогли найти файл, который вы запросили. Возможно он уже не существует.' :
+								jqXHR.status === 502 ? 'На данный момент трек не доступен для воспроизведения. Попробуйте позже.' :
+									'Произошла неизвестная ошибка воспроизведения. Попробуйте позже.';
+
+							var $dialog = $(ZINA.el("div#deleted-dialog.modal__window")).appendTo("body").html('<div class="modal__content">' + trackName + '<p>'+ textMessage + '</p></div>');
+							$dialog.dialog({
+								modal: true, width: 370, resizable: false,
+								buttons: {
+									OK: function() {
+										$(this).dialog("close");
+									}
+								}
+							});
+						}
+						me.trigger("player:stop");
+					});
+			}
+		},
+
+		pause: function (obj) {
+			this.trigger("player:pause", obj);
+			ZINA.Player.doPause(obj.id);
+			$('link[rel="shortcut icon"]').attr('href', '/static/images/new-favicon/pause/favicon.ico');
+			$('link[rel="apple-touch-icon"]').attr('href', '/static/images/new-favicon/pause/apple-touch-icon.png');
+		},
+
+		resume: function (obj) {
+			ZINA.Player.doPlay(null, obj.id);
+			var trackBlock = $('div').find("[data-id='" + obj.id + "']").first();
+					trackName = trackBlock.find(".musicset-track__artist").text() + ' — ' + trackBlock.find(".musicset-track__track-name").text();
+			$('link[rel="shortcut icon"]').attr('href', '/static/images/new-favicon/play/favicon.ico');
+			$('link[rel="apple-touch-icon"]').attr('href', '/static/images/new-favicon/play/apple-touch-icon.png');
+			document.title = trackName;
+		},
+
+		stop: function (obj) {
+			// this.trigger("player:stop", obj);
+			ZINA.Player.doPause(obj.id);
+			$('link[rel="shortcut icon"]').attr('href', '/static/images/new-favicon/pause/favicon.ico');
+			$('link[rel="apple-touch-icon"]').attr('href', '/static/images/new-favicon/pause/apple-touch-icon.png');
+		}
+	});
+
+	(function () {
+		var playerInstance = null;
+		// singletons
+		ZINA.namespace("ZINA.Musicset", {
+			Player: function () {
+				if (!playerInstance) {
+					playerInstance = new Player();
+				}
+				return playerInstance;
+			}
+		});
+	}());
+}(window, Backbone));

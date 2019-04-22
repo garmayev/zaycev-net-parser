@@ -1,0 +1,24 @@
+ZINA.geoban.queue([]);
+$.ajax("/m3_top/recommended_block_vertical.shtml", {
+	type: "GET",
+	cache: true,
+	success: function(data) {
+		$(".recommended_vertical").html(data);
+		var tracks = [],
+				trackEls = $(".recommended_vertical [data-dkey]");
+		for (var i = 0; i < trackEls.length; i++) {
+			tracks[tracks.length] = {
+				"value": $(trackEls[i]).data("dkey"),
+				"activity": "streaming"
+			};
+			tracks[tracks.length] = {
+				"value": $(trackEls[i]).data("dkey"),
+				"activity": "download"
+			};
+		}
+		$(function () {
+			ZINA.geoban.checkAdded(tracks);
+			ZINA.Musicset.init($(".recommended_vertical .musicset-track-list__items"));
+		});
+	}
+});

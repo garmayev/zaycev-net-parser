@@ -1,0 +1,411 @@
+(function () {
+	
+	var L;
+	var playingTrackId;
+	var trackEl;
+	var isMobile = $(".container-zaycev").length != 0;
+	var isUnlockedAudio = false;
+
+	function listenerMoveMouse() {
+		var audio = document.getElementsByClassName('html5-audio')[0];
+
+		if (!isUnlockedAudio && audio) {
+			isUnlockedAudio = true;
+
+			audio.play();
+			audio.pause();
+
+			window.removeEventListener('click', listenerMoveMouse, false);
+		}
+	}
+
+	window.addEventListener('click', listenerMoveMouse, false);
+
+	function clearTimer(me) {
+		if (me.timer) {
+			clearTimeout(me.timer);
+			me.timer = null;
+		}
+	}
+	
+	function saveData(key, value) {
+		if (window['localStorage']) {
+			try {
+				window.localStorage.setItem(key, value);
+			} catch (e) {
+			}
+		}
+	}
+	
+	var HTMLPlayer = {
+		
+		version: "html5",
+		
+		doPlay: function (url, trackId, data) {
+			var me = this,
+				player = document.getElementById(this.id);
+
+			playingTrackId = trackId;
+			trackEl = data;
+			if (player) {
+				if (url) {
+					me.resumed = false;
+					me.currentUrl = url;
+					try {
+						player.src = url;
+						player.load();
+						player.play();
+						if (playingTrackId != undefined && ZINA.defaults("ZINA.Player", "logLatency", false) && !ZINA.defaults("ZINA.Player", "autoplayed")) {
+							$.ajax({
+								url: "/userAction/publish",
+								data: {"action": "click_to_play", "track_id": playingTrackId, "is_mobile": isMobile},
+								dataType: "json"
+							});
+						}
+						player.volume = this.volume / 100.0; // 0 - 1
+						me.startTracking(trackId, data);
+					} catch (ex) {
+						me.trigger("error", "play", trackId, data);
+					}
+				} else {
+					try {
+						me.resumed = true;
+						player.play();
+					} catch (ex) {
+						me.trigger("error", "play", trackId, data);
+					}
+				}
+			} else {
+				me.trigger("error", "noplayer");
+			}
+			
+			player = null;
+		},
+		
+		doPause: function (trackId, data) {
+			ZINA.defaults("ZINA.Player", {"autoplayed": false});
+			var me = this,
+				player = document.getElementById(this.id);
+			
+			if (player) {
+				try {
+					player.pause();
+					me.trigger("pause", trackId, data);
+				} catch (ex) {
+					me.trigger("error", "pause", trackId, data);
+				}
+			} else {
+				me.trigger("error", "noplayer");
+			}
+			
+			var trackBlock = $(".musicset-track[data-id='" + trackId + "'"),
+				trackArtist = $(".musicset-track__artist", trackBlock).text(),
+				trackName = $(".musicset-track__track-name", trackBlock).text();
+			$.ajax({
+				url: "https://cs.digitalbox.ru/r?noredir=1&plid=267&a=pause&t=" + encodeURI(trackArtist + ' - ' + trackName),
+				xhrFields: {
+					withCredentials: true
+				}
+			});
+			player = null;
+		},
+		
+		/**
+		 * Устанавливаем позицию проигрывания
+		 * @param value
+		 * @param duration
+		 */
+		setPosition: function (value, duration) {
+			ZINA.defaults("ZINA.Player", {"autoplayed": false});
+			var me = this,
+				player = document.getElementById(this.id),
+				pos = parseInt(value),
+				limitCurrentTrack = $('.musicset-track[data-id=' + playingTrackId + ']').data('limit');
+
+			try {
+				if (player && !isNaN(pos)) {
+					duration = parseInt(duration);
+					if (limitCurrentTrack > 0) {
+						if (limitCurrentTrack && !isNaN(limitCurrentTrack) && player.duration && !isNaN(player.duration) && limitCurrentTrack <= player.duration) {
+							duration = limitCurrentTrack;
+						}
+						if (!isNaN(duration)) {
+							player.currentTime = pos * limitCurrentTrack / 100.0;
+						}
+					} else {
+						if (player.duration && !isNaN(player.duration)) {
+							duration = player.duration;
+						}
+						if (!isNaN(duration)) {
+							player.currentTime = pos * player.duration / 100.0;
+						}
+					}
+				}
+			} catch (ex) {
+				this.trigger("error", "position", value);
+			}
+			
+			player = null;
+		},
+		
+		setVolume: function (value) {
+			var me = this,
+				player = document.getElementById(this.id);
+			if (value >= 0 && value <= 100) {
+				this.volume = parseInt(value);
+			}
+			
+			try {
+				if (player && !isNaN(this.volume)) {
+					player.volume = this.volume / 100.0;
+					saveData("zina.volume", this.volume);
+				}
+			} catch (ex) {
+				this.trigger("error", "volume", value);
+			}
+			
+			player = null;
+		},
+		
+		tick: function (trackId, data) {
+			var me = this,
+				player = document.getElementById(this.id),
+				progress = {
+					played: 0,
+					buffered: 0,
+					rawData: true
+				},
+				limitCurrentTrack = $('.musicset-track[data-id=' + trackId + ']').data('limit');
+
+			if (player) {
+				try {
+					progress.played = player.currentTime;
+					if (player.buffered) {
+						progress.buffered = player.buffered.end(0);
+					}
+
+					if (limitCurrentTrack > 0 && limitCurrentTrack <= player.duration) {
+						progress.rawData = false;
+						progress.played = 100 * progress.played / limitCurrentTrack;
+						progress.buffered = 100 * progress.buffered / limitCurrentTrack;
+					} else if (player.duration && !isNaN(player.duration)) {
+						progress.rawData = false;
+						progress.played = 100 * progress.played / player.duration;
+						progress.buffered = 100 * progress.buffered / player.duration;
+					}
+
+				} catch (ex) {
+				}
+			}
+			
+			me.timer = setTimeout(function () {
+				me.tick.apply(me, [trackId, data]);
+			}, 1000);
+			
+			me.trigger("tick", trackId, data, progress);
+		}
+	};
+	
+	ZINA.namespace("ZINA.Player", _.extend({
+		// id плеера
+		id: "player" + (+new Date()),
+		volume: 100,
+		currentUrl: "",
+		resumed: false,
+		
+		formatTime: function (seconds) {
+			var out = (seconds < 0 ? "-" : "");
+			seconds = Math.abs(seconds);
+			var h = seconds / 3600,
+				m = (seconds % 3600) / 60,
+				s = seconds % 60;
+			if (h >= 1) {
+				out += "%d:".sprintf(h);
+			}
+			return out + "%02d:%02d".sprintf(m, s);
+		},
+		
+		init: function () {
+			var me = this;
+			
+			// обязательно
+			if (!FlashBlockNotifier) {
+				return;
+			}
+			
+			if (ZINA.Player.inited) {
+				return;
+			}
+			
+			ZINA.Player.inited = true;
+			
+			ZINA.Player.on("ready", function () {
+				ZINA.Player.readyFired = true;
+			});
+			
+			ZINA.defaults("ZINA.Player", {
+				"logLatency": $("meta[name=zina-player-log-latency]").attr("content")
+			});
+			
+			if (window['localStorage']) {
+				try {
+					var volume = parseInt(window.localStorage.getItem("zina.volume"));
+					if (!isNaN(volume) && volume >= 0 && volume <= 100) {
+						this.volume = volume;
+					}
+				} catch (e) {
+				}
+			}
+			
+			L = ZINA.namespace("ZINA.AjaxLogger").write || function () {
+			};
+			
+			$("#" + me.id).remove();
+			$("body").append('<div id="' + me.id + '" class="swf-player"></div>');
+				
+			_.extend(me, HTMLPlayer);
+
+			var onesecpath = "/static/images/vip/onesec.mp3";
+			var audio = new Audio(onesecpath);
+			var video = document.createElement('video');
+
+			(function (audioEle) {
+				var placeholder = $("#" + me.id);
+				if (placeholder.length) {
+					audioEle.replaceAll(placeholder);
+				} else {
+					audioEle.appendTo("body");
+				}
+				return audioEle;
+			}($(audio)))
+				.attr("id", me.id)
+				.addClass('html5-audio')
+				.bind({
+					"error": me.error,
+					"playing": me.play,
+					"ended": function () {
+						if (this.src && this.src.indexOf(onesecpath, this.length - onesecpath.length) !== -1) {
+							$(document).off("touchend.unlockIOS");
+						} else {
+							me.complete();
+						}
+					}
+				});
+
+			(function (videoEle) {
+				var placeholder = $("#" + 'video' + me.id);
+				if (placeholder.length) {
+					videoEle.replaceAll(placeholder);
+				} else {
+					videoEle.appendTo(".video-block__video-wrapper");
+				}
+				return videoEle;
+			}($(video)))
+				.attr("id", 'video-' + me.id)
+				.addClass('html5-video');
+
+			me.trigger("ready");
+
+			// play fake sample on iOS devises
+			if ($("html").hasClass("touch")) {
+				$(document).on("touchend.unlockIOS", function () {
+					if (audio && audio.src && audio.src.indexOf(onesecpath, this.length - onesecpath.length) !== -1) {
+						audio.volume = 1;
+						audio.play();
+					}
+				});
+			}
+		},
+		
+		startTracking: function (trackId, data) {
+			clearTimer(this);
+			this.tick(trackId, data);
+		},
+		
+		// события плеера
+		
+		// колбек для логгирования
+		log: function (msg) {
+		},
+		// событие о начале проигрывания
+		play: function (itemId) {
+			var me = ZINA.Player;
+			me.trigger("play", playingTrackId, trackEl);
+			if (playingTrackId != undefined && ZINA.defaults("ZINA.Player", "logLatency", false) && !ZINA.defaults("ZINA.Player", "autoplayed")) {
+				$.ajax({
+					url: "/userAction/publish",
+					data: {"action": "play_started", "track_id": playingTrackId, "is_mobile": isMobile},
+					dataType: "json"
+				});
+			} else if (playingTrackId != undefined && ZINA.defaults("ZINA.Player", "logLatency", false)) {
+				$.ajax({
+					url: "/userAction/publish",
+					data: {
+						"action": "play_started",
+						"track_id": playingTrackId,
+						"autoplay": true,
+						"is_mobile": isMobile
+					},
+					dataType: "json"
+				});
+			}
+			var trackBlock = $(".musicset-track[data-id='" + playingTrackId + "'"),
+				trackArtist = $(".musicset-track__artist", trackBlock).text(),
+				trackName = $(".musicset-track__track-name", trackBlock).text();
+			$.ajax({
+				url: "https://cs.digitalbox.ru/r?noredir=1&plid=267&a=play&t=" + encodeURI(trackArtist + ' - ' + trackName),
+				xhrFields: {
+					withCredentials: true
+				}
+			});
+		},
+		// текущая композиция почти завершила проигрывание
+		almost: function () {
+		},
+		// композиция завершила проигрывание
+		complete: function () {
+			var me = ZINA.Player;
+			clearTimer(me);
+			me.trigger("stop");
+			me.trigger("complete");
+			
+			var trackBlock = $(".musicset-track[data-id='" + playingTrackId + "'"),
+				trackArtist = $(".musicset-track__artist", trackBlock).text(),
+				trackName = $(".musicset-track__track-name", trackBlock).text();
+
+			$.ajax({
+				url: "https://cs.digitalbox.ru/r?noredir=1&plid=267&a=end&t=" + encodeURI(trackArtist + ' - ' + trackName),
+				xhrFields: {
+					withCredentials: true
+				}
+			});
+		},
+		// приостановить проигрывание текущего трека во всех проигрывателях
+		pauseAll: function () {
+			var me = ZINA.Player;
+			me.trigger("pauseAll");
+		},
+		// остановить проигрывание текущего трека
+		stop: function () {
+			var me = ZINA.Player;
+			clearTimer(me);
+			me.trigger("stop");
+		},
+		// остановить проигрывание текущего трека и забыть текущую позицию в списке треков
+		reset: function () {
+			var me = ZINA.Player;
+			clearTimer(me);
+			me.trigger("stop");
+			me.trigger("reset");
+		},
+		// ошибка при проигрывании
+		error: function (msg) {
+			if (msg == "io-error" || msg.currentTarget.error.code == msg.currentTarget.error.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+				var me = ZINA.Player;
+				me.trigger("error", "captcha");
+			}
+		}
+		
+	}, Backbone.Events));
+	
+}());

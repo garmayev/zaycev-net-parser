@@ -1,0 +1,560 @@
+var tmp = true;
+try {
+  if (!(document.domain === 'zaycev.net' || document.domain === 'zaycev.ru.net')) {
+    throw new SyntaxError("Wrong domain");
+  }
+} catch (err) {
+  tmp = false;
+}
+/**
+ * Глобальные настройки ассинхронных запросов
+ */
+jQuery.ajaxSetup({
+  cache: false,
+  global: true
+});
+
+ZINA.namespace("ZINA.Feedback", {
+  URL: "/feedback/submit",
+  send: function (data) {
+    data = $.extend({
+      encoded: true,
+      browser: "",
+      url: "",
+      requestMethod: "",
+      referrer: "",
+      stacktrace: "",
+      text: ""
+    }, data);
+
+    return $.ajax({
+      url: ZINA.Feedback.URL,
+      type: "post",
+      dataType: "text",
+      data: data
+    });
+  }
+});
+
+
+/** отслеживаем скролл для плавающей шапки **/
+$(function () {
+  var s = $(".header__wrapper"),
+    isIE6 = $.browser.msie && $.browser.version == "6.0",
+    absPosition = isIE6;
+
+  function stickHeaderOnScroll() {
+    var pos = $(".header").offset(),
+      windowpos = $(window).scrollTop();
+
+    if (pos && windowpos > pos.top) {
+      if (!absPosition) {
+        s.addClass("stick");
+      }
+    } else {
+      if (!absPosition) {
+        s.removeClass("stick");
+      }
+    }
+  }
+
+  if (s.length) {
+    $(document).on("scroll.head", stickHeaderOnScroll);
+  }
+  stickHeaderOnScroll();
+});
+
+$(function () {
+  var isFromClone = ZINA.cookie("fromclone"),
+    domainName = [atob("emF5Y2V2Lm5ldA=="), atob("emF5Y2V2LnJ1Lm5ldA==")];
+  if ((isFromClone == null) && !(getParameterByName('fromclone') == null)) {
+    $('.ifFromClon').show();
+    $('.ifFromClon__close').on("click", function (e) {
+      $('.ifFromClon').remove();
+      ZINA.cookie("fromclone", "1", {expires: 1});
+    });
+    $('.ifFromClon__button').on("click", function (e) {
+      this.title = domainName[0];
+      this.href = 'http://' + domainName[0];
+      $('.ifFromClon').remove();
+      ZINA.cookie("fromclone", "1", {expires: 365});
+      return add_favorite(this);
+    });
+  }
+
+  function checkDomainNameFromList(value) { //if true - site is a clone
+    return !(location.hostname.match(value) == null);
+  }
+
+  if (!domainName.some(checkDomainNameFromList) && tmp === false) {
+    var gdnName = location.hostname;
+    var styles = $('<style>.ui-dialog .ui-dialog-content a.linktooriginal{font-size: 26px;font-family:Arial;color:#fff;display:inline-block;background:#00A9DE;padding:33px 60px;border-radius:8px;outline:none;margin-bottom: 70px}.dialog-title{font-family:Arial;font-size:34px;color:#000;margin:40px auto 70px;}.clonsite{text-align:center;}.dialog-pictures{background: url("//dl.zaycev.net/static/1851/gdnsote.png") repeat-x transparent;width: 702px;height: 117px;position: absolute;top: -117px;left:40px}.ui-dialog .ui-dialog-content.clonsite{overflow:visible}</style>');
+    styles.appendTo('body');
+    var ele = ZINA.el('div.clonsite', [
+      ZINA.el('div.dialog-pictures'),
+      ZINA.el('div.dialog-title', [gdnName, " — клон " + domainName[0]]),
+      ZINA.el('a.linktooriginal', {href: 'http://' + domainName[0] + '/?fromclone'}, ['Перейти на ' + domainName[0]])
+    ]);
+    $(ele).dialog({
+      draggable: false,
+      resizable: false,
+      modal: true,
+      width: 780
+    }).on("dialogclose", function () {
+      $.get("http://rttr2." + domainName + "/click?is=NrD51f-_shsOYSHE9X-F4wLMiPzXi55yrf9DxXB-wxPuXiswQDm8dA7MhYQcfCTsunXKxd0zD66Vhjc5pkbxcGXVqB17hXxt-WGNidcREuIUvWTEdE2bDPq9dbbod1pcEJp5sji62TYp0j0MvEWL2_4a-aI");
+    });
+    return false;
+  }
+
+  function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    url = url.toLowerCase(); // This is just to avoid case sensitiveness
+    name = name.replace(/[\[\]]/g, "\\$&").toLowerCase();// This is just to avoid case sensitiveness for query parameter name
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+      results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+  }
+
+  function add_favorite(a) {
+    title = document.title;
+    url = document.location;
+    try {
+      // Internet Explorer
+      window.external.AddFavorite(url, title);
+    }
+    catch (e) {
+      try {
+        // Mozilla
+        window.sidebar.addPanel(title, url, "");
+      }
+      catch (e) {
+        // Opera и Firefox 23+
+        if (typeof(opera) == "object" || window.sidebar) {
+          a.rel = "sidebar";
+          a.title = title;
+          a.url = url;
+          a.href = url;
+          return true;
+        }
+        else {
+          // Unknown
+          alert('Нажмите Ctrl+D чтобы добавить страницу в закладки');
+        }
+      }
+    }
+    return false;
+  }
+});
+
+/** форма логина и меню пользователя **/
+$(function () {
+  if ($(".login-toolbar_main").length > 0) {
+    $(document).click(function () {
+      $(".login-toolbar_main").hide();
+    });
+    $(".person-profile-info__activate-link").click(function (e) {
+      e.stopPropagation();
+    });
+    $(".person-profile-info__open-menu").click(function (e) {
+      e.preventDefault();
+    });
+    $(".person-profile-info").click(function (e) {
+      e.stopPropagation();
+      $(".login-toolbar_main").toggle();
+    });
+    $(".header-auth-toolbar").click(function (e) {
+      e.stopPropagation();
+    });
+  } else {
+    $(document).click(function () {
+      $(".header-auth-toolbar").hide();
+    });
+    $(".header-auth__link--login").click(function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $(".header-auth-toolbar").toggle();
+    });
+    $(".header-auth-toolbar").click(function (e) {
+      e.stopPropagation();
+    });
+  }
+});
+
+(function () {
+  function isSupportOpacity() {
+    return $.support && $.support.opacity || $("html").hasClass("opacity");
+  }
+
+  ZINA.crossLabel = function (inputEle) {
+    inputEle.siblings("label").each(function () {
+      var label = $(this),
+        box = label.closest("div");
+
+      function fade() {
+        if (isSupportOpacity()) {
+          label[box.hasClass("filled") || box.hasClass("active") ? "fadeOut" : "fadeIn"]("fast");
+        } else {
+          label.css("display", box.hasClass("filled") || box.hasClass("active") ? "none" : "block");
+        }
+      }
+
+      label.css("display", "none").removeClass("hidden");
+
+      inputEle.bind("focus", function () {
+        box.addClass("active");
+        fade();
+      }).bind("blur", function () {
+        box.toggleClass("filled", inputEle.val() !== "").removeClass("active");
+        fade();
+      }).triggerHandler("blur");
+    });
+  }
+}());
+
+(function () {
+  var authWindowTimer;
+
+  ZINA.AuthController = {
+    flow: function (url) {
+      if (authWindowTimer) {
+        clearTimeout(authWindowTimer);
+      }
+      if (url) {
+        location.assign(url);
+      } else {
+        location.reload();
+      }
+    },
+    init: function () {
+      function openAuthWindow(url) {
+        var popupWidth = 800;
+        var popupHeight = 600;
+        var xPosition = Math.round(($(window).width() - popupWidth) / 2);
+        var yPosition = Math.round(($(window).height() - popupHeight) / 2);
+        var params = "location=1,scrollbars=1," +
+          "width=" + popupWidth + ",height=" + popupHeight + "," +
+          "left=" + xPosition + ",top=" + yPosition;
+
+        var authWindow = window.open(url, "socialAuthorizationPopUp", params);
+
+        (function scheduleReload() {
+          authWindowTimer = setTimeout(function () {
+            if (authWindow.closed) {
+              authWindowTimer = 0;
+              location.reload();
+            } else {
+              scheduleReload();
+            }
+          }, 1000);
+        }());
+      }
+
+      $(".header-auth-toolbar__icon, .login-social-icon").bind("click", function () {
+        var callbackUrl = $(this).attr("data-href") || "",
+          currentUrl = (location.href || "").match(/^(https?:\/\/[^\/]+)\/(.*)$/),
+          REDIRECT_URI = "redirect_uri=",
+          RX = new RegExp(REDIRECT_URI + "%2f([^&]+)");
+
+        if (currentUrl && currentUrl.length > 2) {
+	        var host = currentUrl[1];
+	        var redirectHost = host;
+
+	        //quick solution for "redirect_uri is blocked"
+	        if ($(this).is(".header-auth-toolbar__icon--vk")) {
+		        redirectHost = location.hostname;
+	        }
+
+	        //quick solution for "redirect_uri is blocked"
+	        if ($(this).is(".login-social-icon-vk")) {
+		        redirectHost = location.hostname;
+	        }
+
+          var replacement = REDIRECT_URI + encodeURIComponent(redirectHost) + "/$1" + encodeURIComponent("?host=" + host);
+          callbackUrl = callbackUrl.replace(RX, replacement);
+          openAuthWindow(callbackUrl);
+        }
+
+        return false;
+      });
+      ZINA.crossLabel($('#j_username_'));
+      ZINA.crossLabel($('#j_password_'));
+    }
+  };
+
+  $(ZINA.AuthController.init);
+}());
+
+
+(function () {
+
+  var cacheablePromises = {};
+  var concurentRequests = {};
+
+  ZINA.namespace("ZINA.Ajax", {
+    /**
+     * Запросы к одному и тому же урлу с одинаковыми параметрами кешируются
+     * @param opts
+     * @return {Object}
+     */
+    cacheable: function (opts) {
+      var key = $.param({
+        url: opts.url || "",
+        type: (opts.type || "get").toLowerCase(),
+        data: opts.data || {}
+      });
+      return cacheablePromises[key] ? cacheablePromises[key] :
+        (cacheablePromises[key] = $.ajax(opts).promise());
+    },
+    /**
+     * Несколько одновременных запросов к одному и тому же урлу возвращают результат только
+     * последнего запроса
+     * @param opts
+     * @param cacheable {Boolean} optional
+     * @return {Object}
+     */
+    concurent: function (opts, cacheable) {
+      // именно этот объек будет возвращать функция вместо jqXHR
+      var deferred = $.Deferred(), promise = deferred.promise();
+      // сохраняем колбеки, если они есть
+      promise.done(opts.success || $.noop);
+      promise.fail(opts.error || $.noop);
+      promise.always(opts.complete || $.noop);
+      // удаляем колбеки из параметров, так как cacheable не обрабатывает их
+      delete opts.success;
+      delete opts.error;
+      delete opts.complete;
+
+      var requestId = concurentRequests[opts.url] = $.now();
+
+      // кеширующий или обычный запрос
+      (cacheable ? ZINA.Ajax.cacheable : $.ajax)(opts)
+        .done(function () {
+          if (concurentRequests[opts.url] <= requestId) {
+            deferred.resolveWith(promise, Array.prototype.slice.apply(arguments));
+          }
+        })
+        .fail(function () {
+          if (concurentRequests[opts.url] <= requestId) {
+            deferred.rejectWith(promise, Array.prototype.slice.apply(arguments));
+          }
+        });
+
+      return promise;
+    }
+  });
+
+}());
+
+
+(function () {
+
+  function checkVisible($el) {
+    var viewportHeight = $(window).height(), // Viewport Height
+      scrollTop = $(window).scrollTop(), // Scroll Top
+      y = $el.offset().top;
+
+    return y < (viewportHeight + scrollTop);
+  }
+
+  /**
+   * Track on screen visibility of selected element
+   * @param selector {String|jQuery} Selector string or element
+   * @param callback {Function|Object} It will be called on visibility state change. Argument of callback: false - invisible, true - visible
+   */
+  ZINA.onVisible = function (selector, callback) {
+    var $el = $(selector);
+    if (!$el.length) {
+      return;
+    }
+
+    if (!$.isFunction(callback)) {
+      var dfd = callback;
+      callback = function (state) {
+        if (state) dfd.resolve();
+      }
+    }
+
+    var lastState;
+
+    var handler = ZINA.debounce(function () {
+      var state = checkVisible($el);
+      if (state !== lastState) {
+        lastState = state;
+        // run callback in async mode
+        setTimeout(function () {
+          callback(state);
+        }, 0);
+      }
+    }, 500, false);
+
+    $(window).on("resize scroll", handler);
+
+    handler();
+  };
+
+}());
+
+/* кнопка перемотки вверх-вниз */
+$(function () {
+  var isIE6 = $.browser.msie && $.browser.version == "6.0",
+    absPosition = isIE6,
+    flagScrlBtn = 0,
+    scrollsave = 0,
+    scrlbutton = $("<div class='scrolling-button'>&#8593;</div>"),
+    leftPosButton = -$(".body-gaps").width() / 2 - 96;
+  scrlbutton.appendTo($(".body-branding"));
+  scrlbutton.css("margin-left", leftPosButton + "px")
+    .on("click", function () {
+      if (!flagScrlBtn) {
+        scrollsave = $(window).scrollTop();
+        $(window).scrollTop(0);
+        scrlbutton.text("\u2193");
+        flagScrlBtn = 1;
+      } else {
+        $(window).scrollTop(scrollsave);
+        scrlbutton.text("\u2191");
+        flagScrlBtn = 0;
+      }
+    });
+
+  function scrollingButton() {
+    var windowpos = $(window).scrollTop();
+    if (!absPosition && $(window).width() > 1380) {
+      if (windowpos > 150) {
+        scrlbutton.show();
+        flagScrlBtn = 0;
+        scrlbutton.text("\u2191");
+      } else {
+        if (!flagScrlBtn) {
+          scrlbutton.hide();
+        }
+      }
+    }
+  }
+
+  if ($(".header").length) {
+    $(document).on('scroll', scrollingButton);
+  }
+  scrollingButton();
+});
+
+
+$(function () {
+  $('.ui-widget-overlay').live('click', function () {
+    $('.modal__window').each(function () {
+      $(this).dialog("close");
+    });
+  });
+});
+
+function showGeoBanWindow() {
+  $(".geo__content_track").removeClass("geo__content_track");
+  var $dialog = $(".geo__content").dialog({
+    closeOnEscape: true,
+    dialogClass: "geo__window",
+    modal: true,
+    minWidth: 935,
+    minHeight: 355,
+    resizable: false
+  });
+  $("input[name='detectedGeoCountryName']", $dialog).val($("meta[name=zina-geoban-country-name]").attr("content"));
+  return $dialog;
+}
+
+$(function () {
+  var countryName = $("meta[name=zina-geoban-country-name]").attr("content"),
+    countryBanned = $("meta[name=zina-geoban-country-banned]").attr("content");
+  if (countryBanned === "true") {
+    ZINA.defaults("ZINA.Player", {
+      "geoBan": true,
+      "geoCountryCode": countryName,
+      "disableGeoBanWindowAutoShow": $("meta[name=zina-geoban-disable-autoshow]").attr("content")
+    });
+    if (ZINA.cookie("geoban") == null) {
+      ZINA.cookie("geoban", 1, {"path": "/", "expires": 1});
+      if (!ZINA.defaults("ZINA.Player", "disableGeoBanWindowAutoShow", true)) {
+        $(function () {
+          showGeoBanWindow();
+        });
+      }
+    };
+  }
+  if (countryName) {
+    var geoCode = countryName;
+    $(".geo-info__all-tracks .geo__flag-img").attr("src", $("meta[name=zina-geoban-flags-path]").attr("content") + geoCode + ".png");
+    $(".geo-descr__country_eng").text(ZINA.defaults("ZINA.l10n.countries.eng", geoCode));
+    $(".geo-descr__country_rus").text(ZINA.defaults("ZINA.l10n.countries.rus", geoCode));
+  }
+  $(".geo__switcher").click(function () {
+    $(".geo__lang").toggleClass("geo__lang_hidden");
+  });
+  $(".geo__form-question").click(function () {
+    $(this).hide();
+    $(".geo__form").show();
+    $(".geo-content__close-btn").hide();
+  });
+  $("form#geofeedback").bind("submit", function (event) {
+    if ($(".geo-feedback__email input").val().length == 0 || $(".geo-feedback__email input").val().indexOf("@") == -1) {
+      $(".geo-feedback__email input").css("border-color", "red");
+      event.preventDefault();
+      return false;
+    } else {
+      $("#geofeedback").hide();
+      $(".geo__message-sent").show();
+      $(".geo-content__close-btn-sent").show();
+    }
+  });
+  $(".geo-content__close-btn").on("click", function () {
+    $(this).parents(".modal__window").dialog("close");
+  });
+  $(".musicset-track__control").on('click.played', function () {
+    if (!$(this).hasClass('track-is-banned')) {
+      $(this).unbind('click.played');
+    }
+  });
+
+	$('body').append($("<img src='https://cs.digitalbox.ru/r?plid=267&a=play&t=' style='display:none;'/>"));
+  if (window.grecaptcha && grecaptcha) {
+    grecaptcha.ready(function () {
+      grecaptcha.execute('6Le6h50UAAAAANf_XeXUNc2uLu4i1UyONbfJrc3Y', {action: 'geoban_desktop'})
+          .then(function (token) {
+            fetch('/captchaNew?action=geoban_desktop&clientResponse=' + token)
+                .then(function (response) {
+                  return response.json()
+                })
+                .then(function (data) {
+                  if (!data.success) {
+                    $('.geo__form-question').hide();
+                    $('.geo__form-question').remove();
+                    $('.geo__form').remove();
+                  } else {
+                    if (data.score < 0.6) {
+                      $('.geo__form-question').hide();
+                      $('.geo__form-question').remove();
+                      $('.geo__form').remove();
+                    }
+                  }
+                });
+          });
+    });
+  }
+});
+
+ZINA.defaults("ZINA.Captcha", {
+  "title": "Проверка",
+  "intro": "От вас поступило слишком много запросов",
+  "comment": "От вас поступило слишком много сообщений",
+  "error": "Неверный код\nпопробуйте еще раз",
+  "image": "Введите код с картинки",
+  "text": "Цифры с картинки",
+  "reload": "Не вижу символы",
+  "validate": "Отправить"
+});
+
+ZINA.onContentReady("zina-region-leftmenutop", function () {
+  if (ZINA.cookie("nomob") || ZINA.cookie("mobAg")) {
+    $("#zina-region-leftmenutop ul").append('<li><a href="/mobile/switchMobile">В мобильную версию</a></li>');
+  }
+});

@@ -1,0 +1,58 @@
+$(function () {
+	var next = 2, 
+			pages = $("#artists").data("pages"), 
+			tracks = [];
+	$(".artist-list").each(function() {
+		var ms = $(this);
+		ZINA.Musicset.init(ms);
+		$(".musicset-track", ms).each(function () {
+			tracks[tracks.length] = {
+				"value": $(this).data("dkey"),
+				"activity" : "streaming"
+			};
+		});
+	});
+	ZINA.geoban.check(tracks);
+	
+	function buttonStream() {
+		$('.stream-end-inner').on('click', function(){
+			if ($(".stream-footer").hasClass("has-more-items")) {
+				var w = $(window),
+						pna = window.location.pathname.split("/"),
+						pageName = pna.pop().replace(/\.html$/, "-more.html").replace(/^index-/, "");
+				pna[pna.length] = pageName;
+				$(".stream-footer").addClass("stream-loading");
+				$.ajax({
+					url: pna.join("/"),
+					data: {"page": next},
+					dataType: "html",
+					success: function(data) {
+						var appended = $(data), tracks = [];
+						appended.appendTo(".artist-list");
+						$(".artist-list").each(function() {
+							var ms = $(this);
+							ZINA.Musicset.init(ms);
+							$(".musicset-track", ms).each(function () {
+								tracks[tracks.length] = {
+									"value": $(this).data("dkey"),
+									"activity" : "streaming"
+								};
+							});
+						});
+						ZINA.geoban.check(tracks);
+
+						if (next == pages) {
+							$(".stream-footer").removeClass("has-more-items");
+						}
+						next++;
+						$(".stream-footer").removeClass("stream-loading");
+					},
+					error: function () {
+						$(".stream-footer").removeClass("has-more-items").removeClass("stream-loading");
+					}
+				});
+			}
+		});
+	}
+	buttonStream();
+});

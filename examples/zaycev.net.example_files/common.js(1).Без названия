@@ -1,0 +1,1009 @@
+// usage: log('inside coolFunc', this, arguments);
+// paulirish.com/2009/log-a-lightweight-wrapper-for-consolelog/
+window.log = function () {
+	log.history = log.history || [];   // store logs to an array for reference
+	log.history.push(arguments);
+	arguments.callee = arguments.callee.caller;
+	if (this.console) console.log(Array.prototype.slice.call(arguments));
+};
+// make it safe to use console.log always
+(function (b) {
+	function c() {
+	}
+
+	for (var d = "assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(","), a; a = d.pop();) b[a] = b[a] || c
+})(window.console = window.console || {});
+
+
+/**
+ * printf/sprintf
+ * @version 2007.04.27
+ * @author Ash Searle
+ * @see http://perldoc.perl.org/functions/sprintf.html
+ */
+(function () {
+	var r = /%%|%(\d+\$)?([-+#0 ]*)(\*\d+\$|\*|\d+)?(\.(\*\d+\$|\*|\d+))?([scboxXuidfegEG])/g;
+	String.prototype.sprintf = function () {
+		function m(b, a, f, c) {
+			a = b.length >= a ? "" : Array(1 + a - b.length >>> 0).join(f);
+			return c ? b + a : a + b
+		}
+
+		function n(b, a, f, c, e) {
+			var d = c - b.length;
+			d > 0 && (b = f || !e ? m(b, c, " ", f) : b.slice(0, a.length) + m("", d, "0", !0) + b.slice(a.length));
+			return b
+		}
+
+		function l(b, a, f, c, e, d, i) {
+			b >>>= 0;
+			f = f && b && {2: "0b", 8: "0", 16: "0x"}[a] || "";
+			b = f + m(b.toString(a), d || 0, "0", !1);
+			return n(b, f, c, e, i)
+		}
+
+		function q(b, a, f, c, e) {
+			c != null && (b = b.slice(0, c));
+			return n(b, "", a, f, e)
+		}
+
+		var j = arguments, o = 0;
+		return this.replace(r, function (b, a, f, c, e, d, i) {
+			if (b == "%%") return "%";
+			for (var e = !1, g = "", h = !1, k = !1, p = 0; f && p < f.length; p++) switch (f.charAt(p)) {
+				case " ":
+					g = " ";
+					break;
+				case "+":
+					g = "+";
+					break;
+				case "-":
+					e = !0;
+					break;
+				case "0":
+					h = !0;
+					break;
+				case "#":
+					k = !0
+			}
+			c = c ? c == "*" ? +j[o++] : c.charAt(0) == "*" ? +j[c.slice(1, -1)] : +c : 0;
+			c < 0 && (c = -c, e = !0);
+			if (!isFinite(c)) throw Error("sprintf: (minimum-)width must be finite");
+			d = d ? d == "*" ? +j[o++] : d.charAt(0) == "*" ? +j[d.slice(1, -1)] : +d : "fFeE".indexOf(i) > -1 ? 6 : i == "d" ? 0 : void 0;
+			a = a ? j[a.slice(0, -1)] : j[o++];
+			switch (i) {
+				case "s":
+					return q(String(a), e, c, d, h);
+				case "c":
+					return q(String.fromCharCode(+a), e, c, d, h);
+				case "b":
+					return l(a, 2, k, e, c, d, h);
+				case "o":
+					return l(a, 8, k, e, c, d, h);
+				case "x":
+					return l(a, 16, k, e, c, d, h);
+				case "X":
+					return l(a, 16, k, e, c, d, h).toUpperCase();
+				case "u":
+					return l(a, 10, k, e, c, d, h);
+				case "i":
+				case "d":
+					return b = parseInt(+a), g = b < 0 ? "-" : g, a = g + m(String(Math.abs(b)), d, "0", !1), n(a, g, e, c, h);
+				case "e":
+				case "E":
+				case "f":
+				case "F":
+				case "g":
+				case "G":
+					return b = +a, g = b < 0 ? "-" : g, a = ["toExponential", "toFixed", "toPrecision"]["efg".indexOf(i.toLowerCase())], i = ["toString", "toUpperCase"]["eEfFgG".indexOf(i) % 2], a = g + Math.abs(b)[a](d), n(a, g, e, c, h)[i]();
+				default:
+					return b
+			}
+		})
+	}
+})();
+
+/**
+ * Application skeleton
+ * @version 1.1.1
+ */
+(function (f, i) {
+	function l(c) {
+		return "undefined" === typeof c || null === c
+	}
+
+	function k(c) {
+		return "[object Array]" === j.apply(c) ? c : [c]
+	}
+
+	function m(c, e) {
+		for (var a in e) !l(e[a]) && l(c[a]) && (c[a] = e[a]);
+		return c
+	}
+
+	var g = f[i] = f[i] || {}, n = Array.prototype.push, o = Array.prototype.unshift, j = Object.prototype.toString;
+	(function () {
+		function c(a, b, d) {
+			var c, e;
+			if (a) {
+				a = a.split(".");
+				for (c = a[0] === i ? 1 : 0; c < a.length; c += 1) e = d[a[c]] || {}, d = d[a[c]] = c === a.length - 1 && b ? m(b, e) : e
+			}
+			return d
+		}
+
+		var e = {};
+		g.namespace = function (a, b) {
+			return c(a, b, f[i])
+		};
+		g.defaults = function (a, b, d) {
+			if (b && "[object Object]" === j.apply(b)) d = c(a, b, e); else {
+				var a = c(a, {}, e), f;
+				if (!l(b)) {
+					f = ("" + b).split(".");
+					for (b = 0; b < f.length; b += 1) if (a && "[object Object]" === j.apply(a) && a.hasOwnProperty(f[b])) a = a[f[b]]; else {
+						a = d;
+						break
+					}
+				}
+				d = a
+			}
+			return d
+		}
+	})();
+	(function () {
+		function c(a) {
+			var b = e[a], d = [];
+			if (a && b && (b.path && !b.skip && d.push(a), 0 < b.requires.length)) for (a = b.requires.length - 1; 0 <= a; a -= 1) o.apply(d, c(b.requires[a]));
+			return d
+		}
+
+		var e = {};
+		g.register = function (a) {
+			var b, c;
+			if (a) for (a = k(a), b = a.length - 1; 0 <=
+			b; b -= 1) c = a[b], c.name && (e[c.name] = {
+				path: c.path || "",
+				requires: c.requires || [],
+				skip: c.skip || !1
+			});
+			return e
+		};
+		g.calculate = function (a, b) {
+			var d, f = [];
+			for (a = k(a), d = 0; d < a.length; d += 1) n.apply(f, c(a[d]));
+			d = !b;
+			var h, g, i = [], j = {};
+			for (g = 0; g < f.length; g += 1) if ((h = f[g]) && !j[h]) j[h] = !0, h = e[h], n.apply(i, k(h.path)), h.skip = h.skip || d;
+			return i
+		}
+	})();
+	(function () {
+		function c(a, b) {
+			return b ? m(b || {}, e) : e
+		}
+
+		var e = {queue: [], bootstraped: !1, loader: f.Modernizr && f.Modernizr.load || f.yepnope};
+		g.bootstrap = function (a) {
+			var b = c.apply(this, arguments);
+			o.apply(b.queue, k(a));
+			b.loader && (b.loader.call(f, b.queue), b.queue = [], b.bootstraped = !0)
+		};
+		g.load = function (a) {
+			var b = c.apply(this, arguments);
+			"[object Function]" === j.apply(a) && (a = {load: [], complete: a});
+			b.bootstraped && b.loader ? b.loader.call(f, a) : Array.prototype.push.apply(b.queue, k(a))
+		}
+	})()
+})(this, "ZINA");
+
+/**
+ * Sugared DOM
+ * @see https://gist.github.com/1532562
+ * @see https://github.com/mistakster/sugared-dom
+ */
+ZINA.el = function () {
+	var j = document, k = Object.prototype.toString, o = {
+		"class": "className",
+		className: "className",
+		defaultValue: "defaultValue",
+		"for": "htmlFor",
+		html: "innerHTML",
+		text: "textContent",
+		value: "value"
+	}, p = {checked: 1, defaultChecked: 1, disabled: 1, multiple: 1, selected: 1}, l = function (d, b) {
+		var f, c, a;
+		f = 0;
+		for (c = b.length; f < c; f += 1) if (a = b[f]) "[object Array]" === k.apply(a) ? l(d, a) : ("string" === typeof a && (a = j.createTextNode(a)), d.appendChild(a))
+	}, m = /#|\./;
+	return function (d, b, f) {
+		"[object Array]" === k.apply(b) && (f = b, b = null);
+		var c, a, e, g, n, h, i;
+		if (m.test(d)) {
+			c = d;
+			a = c.split(m);
+			d = a[0];
+			b || (b = {});
+			h = 0;
+			g = 1;
+			for (n = a.length; g < n; g++) e = a[g], h = c.indexOf(e, h + 1), "#" === c.charAt(h - 1) ? b.id = e : b.className = b.className ? b.className + " " + e : e
+		}
+		d = j.createElement(d);
+		if (b) for (i in b) {
+			c = d;
+			a = i;
+			e = b[i];
+			if ("style" === a) throw Error("Incompatible attribute 'style'");
+			(g = o[a]) ? c[g] = null == e ? "" : "" + e : p[a] ? c[a] = !!e : null == e ? c.removeAttribute(a) : c.setAttribute(a, "" + e)
+		}
+		f && l(d, f);
+		return d
+	}
+}();
+
+/**
+ * Save point engine
+ */
+(function () {
+	var uidx = 1;
+
+	var storage = {};
+
+	/**
+	 * Generate an id that is unique among TRAVEL application
+	 * @method guid
+	 * @param {String} [pre] optional guid prefix
+	 * @return {String} the guid
+	 */
+	ZINA.guid = function (pre) {
+		var p = (pre) || 'zina';
+		return p + '-' + uidx++;
+	};
+
+	/**
+	 * Make a save point for linking DOMNodes and Objects via IDs
+	 * @param obj {Object}
+	 * @param {String} [pre] optional guid prefix
+	 * @return {String} the guid
+	 */
+	ZINA.savepoint = function (obj, pre) {
+		var guid = ZINA.guid(pre);
+		storage[guid] = obj;
+		return guid;
+	};
+
+	/**
+	 * Recall data for save point
+	 * @param guid {String} id of save point
+	 * @return {Object} stored data
+	 */
+	ZINA.recall = function (guid) {
+		return (guid in storage) ? storage[guid] : null;
+	};
+}());
+
+/**
+ * Генерируем строку в соответствии с числительным
+ * @param value
+ * @param forms
+ */
+ZINA.numeral = function (value, forms) {
+	value = parseInt(value);
+
+	var str = "",
+		valueMod100 = value % 100,
+		valueMod10 = value % 10;
+
+	if (forms && forms.length === 3) {
+		if (valueMod100 < 10 || valueMod100 > 20) {
+			if (valueMod10 === 1) {
+				str = forms[0];
+			} else if (valueMod10 > 1 && valueMod10 < 5) {
+				str = forms[1];
+			} else {
+				str = forms[2];
+			}
+		} else {
+			str = forms[2];
+		}
+	}
+
+	return str.sprintf(value);
+};
+
+/**
+ * Метод debounce возвращает функцию, которая будет выполнена только 1 раз через заданный промежуток времени,
+ * если в течение этого промежутка не было других вызовов. Если передан параметр immediate, то выполнение
+ * произойдет в начале интервала, а не в конце.
+ *
+ * @param {Function} func
+ * @param {Number} wait
+ * @param {Boolean} [immediate]
+ * @return {Function}
+ */
+ZINA.debounce = function (func, wait, immediate) {
+	var timeout;
+	return function () {
+		var context = this, args = arguments;
+		var later = function () {
+			timeout = null;
+			if (!immediate) {
+				func.apply(context, args);
+			}
+		};
+		if (immediate && !timeout) {
+			func.apply(context, args);
+		}
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+	};
+};
+
+/**
+ * Метод throttle возвращает функцию, которая выполнит самый последний вызов в течение указанного промежутка времени.
+ *
+ * @param {Function} func
+ * @param {Number} wait
+ * @return {Function}
+ */
+ZINA.throttle = function (func, wait) {
+	var context, args, timeout, throttling, more, result;
+	var whenDone = ZINA.debounce(function () {
+		more = throttling = false;
+	}, wait);
+	return function () {
+		context = this;
+		args = arguments;
+		var later = function () {
+			timeout = null;
+			if (more) {
+				func.apply(context, args);
+			}
+			whenDone();
+		};
+		if (!timeout) {
+			timeout = setTimeout(later, wait);
+		}
+		if (throttling) {
+			more = true;
+		} else {
+			result = func.apply(context, args);
+		}
+		whenDone();
+		throttling = true;
+		return result;
+	};
+};
+
+
+/**
+ * Таймер
+ * @method schedule    Планирует вызов функции
+ *                    Если нет запланированных вызовов, то функция исполняется немедленно и
+ *                    засекается интервал времени, в течение которого другие функции исполняться не будут.
+ *                    Если есть запланированный вызов, то он отменяется и планируется новый вызов функции.
+ * @method cancel    Отменяет запланированный вызов
+ */
+(function () {
+	ZINA.Timer = function () {
+	};
+	ZINA.Timer.prototype = {
+		schedule: function (when, func, data, scope) {
+			var me = this;
+			scope = scope || window;
+			if (!me.id) {
+				// мгновенный вызов
+				me.id = setTimeout(function () {
+					delete me.id;
+				}, when);
+				func.apply(scope, data || []);
+			} else {
+				// отложенный вызов
+				me.cancel();
+				me.id = setTimeout(function () {
+					func.apply(scope, data || []);
+					delete me.id;
+				}, when);
+			}
+		},
+		cancel: function () {
+			if (this.id) {
+				clearTimeout(this.id);
+				delete this.id;
+			}
+		}
+	};
+}());
+
+
+/**
+ * Base64 encode/decode functions
+ */
+(function () {
+	var i = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+	ZINA.namespace("ZINA.Base64", {
+		encode: function (b) {
+			var d = "", g, c, h, a, e, f, j = 0, b = b.replace(/\x0d\x0a/g, "\n");
+			c = "";
+			for (h = 0; h < b.length; h++) a = b.charCodeAt(h), 128 > a ? c += String.fromCharCode(a) : (127 < a && 2048 > a ? c += String.fromCharCode(a >> 6 | 192) : (c += String.fromCharCode(a >> 12 | 224), c += String.fromCharCode(a >> 6 & 63 | 128)), c += String.fromCharCode(a & 63 | 128));
+			for (b = c; j < b.length;) g = b.charCodeAt(j++), c = b.charCodeAt(j++), h = b.charCodeAt(j++), a = g >> 2, g = (g & 3) << 4 | c >> 4, e = (c & 15) << 2 | h >> 6, f = h & 63, isNaN(c) ? e = f = 64 : isNaN(h) && (f = 64), d = d + i.charAt(a) + i.charAt(g) + i.charAt(e) + i.charAt(f);
+			return d
+		}, decode: function (b) {
+			for (var d = "", g, c, h, a, e, f = 0, b = b.replace(/[^A-Za-z0-9\+\/=]/g, ""); f < b.length;) g = i.indexOf(b.charAt(f++)), c = i.indexOf(b.charAt(f++)), a = i.indexOf(b.charAt(f++)), e = i.indexOf(b.charAt(f++)), g = g << 2 | c >> 4, c = (c & 15) << 4 | a >> 2, h = (a & 3) << 6 | e, d += String.fromCharCode(g), 64 != a && (d += String.fromCharCode(c)), 64 != e && (d += String.fromCharCode(h));
+			b = d;
+			d = "";
+			for (a = 0; a < b.length;) e = b.charCodeAt(a), 128 > e ? (d += String.fromCharCode(e), a++) : 191 < e && 224 > e ? (f = b.charCodeAt(a + 1), d += String.fromCharCode((e & 31) << 6 | f & 63), a += 2) : (f = b.charCodeAt(a + 1), g = b.charCodeAt(a + 2), d += String.fromCharCode((e & 15) << 12 | (f & 63) << 6 | g & 63), a += 3);
+			return d
+		}
+	})
+})();
+/**
+ * onAvailable and onContentReady handlers
+ */
+(function (f, j) {
+	function n() {
+		var c, l, a, e, b = 0;
+		c = 0;
+		for (l = d.length; c < l; c++) if (a = d[c]) if ((e = j.getElementById(a.id)) && (!a.checkContent || a.checkContent && (e.nextSibling || e.parentNode.nextSibling || m))) {
+			try {
+				a.callback.call(e, a.obj)
+			} catch (h) {
+				console.error(h)
+			}
+			d[c] = null
+		} else b++;
+		k--;
+		if (0 === b || 0 >= k) g = f.clearInterval(g), d.length && d.splice(0, d.length)
+	}
+
+	function h(c, b, a, e) {
+		k = p;
+		d.push({id: c, callback: b, obj: a, checkContent: !!e});
+		g || (g = f.setInterval(n, q))
+	}
+
+	var m = !1, b = function () {
+		m = !0
+	};
+	"complete" === j.readyState ? setTimeout(b,
+		1) : j.addEventListener ? f.addEventListener("load", b, !1) : f.attachEvent("onload", b);
+	var q = 20, p = 2E3, g = null, d = [], k;
+	ZINA.onAvailable = h;
+	ZINA.onContentReady = function (c, b, a) {
+		h(c, b, a, !0)
+	}
+})(window, document);
+
+
+//fgnass.github.com/spin.js#v1.2.7
+!function (e, t, n) {
+	function o(e, n) {
+		var r = t.createElement(e || "div"), i;
+		for (i in n) r[i] = n[i];
+		return r
+	}
+
+	function u(e) {
+		for (var t = 1, n = arguments.length; t < n; t++) e.appendChild(arguments[t]);
+		return e
+	}
+
+	function f(e, t, n, r) {
+		var o = ["opacity", t, ~~(e * 100), n, r].join("-"), u = .01 + n / r * 100,
+			f = Math.max(1 - (1 - e) / t * (100 - u), e), l = s.substring(0, s.indexOf("Animation")).toLowerCase(),
+			c = l && "-" + l + "-" || "";
+		return i[o] || (a.insertRule("@" + c + "keyframes " + o + "{" + "0%{opacity:" + f + "}" + u + "%{opacity:" + e + "}" + (u + .01) + "%{opacity:1}" + (u + t) % 100 + "%{opacity:" + e + "}" + "100%{opacity:" + f + "}" + "}", a.cssRules.length), i[o] = 1), o
+	}
+
+	function l(e, t) {
+		var i = e.style, s, o;
+		if (i[t] !== n) return t;
+		t = t.charAt(0).toUpperCase() + t.slice(1);
+		for (o = 0; o < r.length; o++) {
+			s = r[o] + t;
+			if (i[s] !== n) return s
+		}
+	}
+
+	function c(e, t) {
+		for (var n in t) e.style[l(e, n) || n] = t[n];
+		return e
+	}
+
+	function h(e) {
+		for (var t = 1; t < arguments.length; t++) {
+			var r = arguments[t];
+			for (var i in r) e[i] === n && (e[i] = r[i])
+		}
+		return e
+	}
+
+	function p(e) {
+		var t = {x: e.offsetLeft, y: e.offsetTop};
+		while (e = e.offsetParent) t.x += e.offsetLeft, t.y += e.offsetTop;
+		return t
+	}
+
+	var r = ["webkit", "Moz", "ms", "O"], i = {}, s, a = function () {
+		var e = o("style", {type: "text/css"});
+		return u(t.getElementsByTagName("head")[0], e), e.sheet || e.styleSheet
+	}(), d = {
+		lines: 12,
+		length: 7,
+		width: 5,
+		radius: 10,
+		rotate: 0,
+		corners: 1,
+		color: "#000",
+		speed: 1,
+		trail: 100,
+		opacity: .25,
+		fps: 20,
+		zIndex: 10,
+		className: "spinner",
+		top: "auto",
+		left: "auto",
+		position: "relative"
+	}, v = function m(e) {
+		if (!this.spin) return new m(e);
+		this.opts = h(e || {}, m.defaults, d)
+	};
+	v.defaults = {}, h(v.prototype, {
+		spin: function (e) {
+			this.stop();
+			var t = this, n = t.opts,
+				r = t.el = c(o(0, {className: n.className}), {position: n.position, width: 0, zIndex: n.zIndex}),
+				i = n.radius + n.length + n.width, u, a;
+			e && (e.insertBefore(r, e.firstChild || null), a = p(e), u = p(r), c(r, {
+				left: (n.left == "auto" ? a.x - u.x + (e.offsetWidth >> 1) : parseInt(n.left, 10) + i) + "px",
+				top: (n.top == "auto" ? a.y - u.y + (e.offsetHeight >> 1) : parseInt(n.top, 10) + i) + "px"
+			})), r.setAttribute("aria-role", "progressbar"), t.lines(r, t.opts);
+			if (!s) {
+				var f = 0, l = n.fps, h = l / n.speed, d = (1 - n.opacity) / (h * n.trail / 100), v = h / n.lines;
+				(function m() {
+					f++;
+					for (var e = n.lines; e; e--) {
+						var i = Math.max(1 - (f + e * v) % h * d, n.opacity);
+						t.opacity(r, n.lines - e, i, n)
+					}
+					t.timeout = t.el && setTimeout(m, ~~(1e3 / l))
+				})()
+			}
+			return t
+		}, stop: function () {
+			var e = this.el;
+			return e && (clearTimeout(this.timeout), e.parentNode && e.parentNode.removeChild(e), this.el = n), this
+		}, lines: function (e, t) {
+			function i(e, r) {
+				return c(o(), {
+					position: "absolute",
+					width: t.length + t.width + "px",
+					height: t.width + "px",
+					background: e,
+					boxShadow: r,
+					transformOrigin: "left",
+					transform: "rotate(" + ~~(360 / t.lines * n + t.rotate) + "deg) translate(" + t.radius + "px" + ",0)",
+					borderRadius: (t.corners * t.width >> 1) + "px"
+				})
+			}
+
+			var n = 0, r;
+			for (; n < t.lines; n++) r = c(o(), {
+				position: "absolute",
+				top: 1 + ~(t.width / 2) + "px",
+				transform: t.hwaccel ? "translate3d(0,0,0)" : "",
+				opacity: t.opacity,
+				animation: s && f(t.opacity, t.trail, n, t.lines) + " " + 1 / t.speed + "s linear infinite"
+			}), t.shadow && u(r, c(i("#000", "0 0 4px #000"), {top: "2px"})), u(e, u(r, i(t.color, "0 0 1px rgba(0,0,0,.1)")));
+			return e
+		}, opacity: function (e, t, n) {
+			t < e.childNodes.length && (e.childNodes[t].style.opacity = n)
+		}
+	}), function () {
+		function e(e, t) {
+			return o("<" + e + ' xmlns="urn:schemas-microsoft.com:vml" class="spin-vml">', t)
+		}
+
+		var t = c(o("group"), {behavior: "url(#default#VML)"});
+		!l(t, "transform") && t.adj ? (a.addRule(".spin-vml", "behavior:url(#default#VML)"), v.prototype.lines = function (t, n) {
+			function s() {
+				return c(e("group", {coordsize: i + " " + i, coordorigin: -r + " " + -r}), {width: i, height: i})
+			}
+
+			function l(t, i, o) {
+				u(a, u(c(s(), {
+					rotation: 360 / n.lines * t + "deg",
+					left: ~~i
+				}), u(c(e("roundrect", {arcsize: n.corners}), {
+					width: r,
+					height: n.width,
+					left: n.radius,
+					top: -n.width >> 1,
+					filter: o
+				}), e("fill", {color: n.color, opacity: n.opacity}), e("stroke", {opacity: 0}))))
+			}
+
+			var r = n.length + n.width, i = 2 * r, o = -(n.width + n.length) * 2 + "px",
+				a = c(s(), {position: "absolute", top: o, left: o}), f;
+			if (n.shadow) for (f = 1; f <= n.lines; f++) l(f, -2, "progid:DXImageTransform.Microsoft.Blur(pixelradius=2,makeshadow=1,shadowopacity=.3)");
+			for (f = 1; f <= n.lines; f++) l(f);
+			return u(t, a)
+		}, v.prototype.opacity = function (e, t, n, r) {
+			var i = e.firstChild;
+			r = r.shadow && r.lines || 0, i && t + r < i.childNodes.length && (i = i.childNodes[t + r], i = i && i.firstChild, i = i && i.firstChild, i && (i.opacity = n))
+		}) : s = l(t, "animation")
+	}(), typeof define == "function" && define.amd ? define(function () {
+		return v
+	}) : e.Spinner = v
+}(window, document);
+
+ZINA.hover = function () {
+	for (var i = 0; i < arguments.length; i++) {
+		var className = arguments[i];
+		(function (className) {
+			$("." + className).each(function () {
+				var $el = $(this);
+				if (!$el.hasClass("hover-bound")) {
+					$el.mouseover(function () {
+						$(this).addClass(className + "_hover");
+					}).mouseleave(function () {
+						$(this).removeClass(className + "_hover");
+					}).addClass("hover-bound");
+				}
+			});
+		})(className);
+	}
+};
+
+ZINA.namespace("ZINA.rot", {
+	places: [],
+	add: function (place) {
+		if ($.inArray(place, this.places) == -1) {
+			this.places.push(place);
+		}
+	},
+	show: function () {
+		var params = "";
+		for (var i in this.places) {
+			if (params != "") params += "&";
+			params += "t=" + this.places[i];
+		}
+		if (params != "") {
+			$.ajax("http://rttr.zaycev.net/multi?" + params)
+				.done(function (data) {
+					$.each(data, function (p, code) {
+						try {
+							$(".rot-" + p).html(ZINA.Base64.decode(code));
+						} catch (e) {
+						}
+					})
+				});
+		}
+	}
+});
+
+ZINA.namespace("ZINA.geoban", {
+	countries: [],
+	tracks: [],
+	queued: 0,
+	timestamp: 0,
+	setCountries: function (list) {
+		var me = this;
+		if (!(list.length == 1 && list[0] == "#geoBanUserCountryCodeList#")) {
+			for (var index in list) {
+				var value = list[index];
+				var geo = value.split(":");
+				if (geo.length == 2) {
+					me.countries.push({"country": geo[0], "state": geo[1]});
+				} else {
+					me.countries.push({"country": value, "state": "*"});
+				}
+			}
+
+		}
+	},
+	setTimeStamp: function (timestamp) {
+		var me = this;
+		if (timestamp != "#currentTimeStamp#") {
+			me.timestamp = timestamp;
+		}
+	},
+	queue: function (tracks) {
+		this.queued++;
+		this.tracks = this.tracks.concat(tracks);
+	},
+	checkAdded: function (tracks) {
+		if (tracks != undefined) {
+			this.tracks = this.tracks.concat(tracks);
+		}
+		if (--this.queued == 0) {
+			this.check(this.tracks);
+		}
+	},
+	check: function (tracks) {
+		var me = this,
+			localCheckRestriction = !!($("meta[name=zina-local-check-restriction]").attr("content")),
+			filezmetaDomain = /*localCheckRestriction ?*/ document.location.host /*: $("meta[name=zina-filezmeta-domain]").attr("content")*/;
+		if (me.timestamp == 0) {
+			var countriesData = $("meta[name=zina-geoban-countries]").attr("content"),
+				timestampData = $("meta[name=zina-geoban-timestamp]").attr("content");
+			if (countriesData != undefined && timestampData != undefined) {
+				me.setCountries(countriesData.split(','));
+				me.setTimeStamp(parseInt(timestampData, 10));
+			}
+		}
+		if (tracks.length > 0) {
+			var allBanned = $("meta[name=zina-geoban-country-banned]").attr("content") === "true";
+			if (allBanned) {
+				var countryCode = ZINA.defaults("ZINA.Player", "geoCountryCode", "");
+				for (var i = 0; i < tracks.length; i++) {
+					var trackEl = $("*[data-dkey='" + tracks[i].value + "']");
+					if (trackEl.length > 0) {
+						me.ban(trackEl, countryCode, "streaming");
+						me.ban(trackEl, countryCode, "download");
+					}
+				}
+			}
+			if (this.countries.length > 0 && !allBanned) {
+				$.ajax({
+					url: (filezmetaDomain ? (("https:" == document.location.protocol ? "https://" : "http://") + filezmetaDomain) : "") + "/v2/checkRestriction",
+					type: "post",
+					dataType: "json",
+					contentType: "application/json; charset=utf-8",
+					data: JSON.stringify(this.fillCheckData(tracks)),
+					success: function (data) {
+						$.each(data.res, function (key, result) {
+							var keyArr = key.split("_");
+							if (keyArr.length > 1) {
+								var activity = keyArr[0];
+								var dKey = key.replace(activity + "_", "");
+								var trackEl = $("*[data-dkey='" + dKey + "']");
+								if (trackEl.length > 0) {
+									if (!result && !allBanned) {
+										me.ban(trackEl, me.countries[0].country, activity);
+									}
+									// else if (result && allBanned) {
+									// 	if (activity == "streaming") {
+									// 		trackEl.removeClass("track-is-banned").addClass("track-is-unbanned");
+									// 		trackEl.trigger("unban");
+									// 	} else if (activity == "download") {
+									// 		trackEl.closest(".track-geo").removeClass("track-geo_banned")
+									// 			.find(".track-geo__button").each(function () {
+									// 			$(this).removeAttr("disabled");
+									// 		});
+									//
+									// 	}
+									// }
+								}
+							}
+						});
+						// подменить надпись в главном треке, если стриминг доступен а скачка нет
+						if ($('.audiotrack-info__player').length > 0 &&
+							$('.audiotrack-info__player .musicset-track__download').hasClass('track-geo_banned') &&
+							!$('.audiotrack-info__player .musicset-track').hasClass('track-is-banned')){
+							$('.audiotrack-download__message.streaming-disable').css("display", "none");
+							$('.audiotrack-download__message.streaming-enable').css("display", "block");
+						}
+						if ($(".musicset__download").parent().hasClass('track-geo_banned')) {
+							$(".musicset__download").attr('title', 'Сборник недоступен для скачивания по требованию правообладателя.')
+						}
+					}
+				}).always(function () {
+					me.bindEvents();
+				});
+			} else {
+				me.bindEvents();
+			}
+		}
+	},
+	checkOnMusicset: function (tracks) {
+		var me = this,
+			localCheckRestriction = !!($("meta[name=zina-local-check-restriction]").attr("content")),
+			filezmetaDomain = /*localCheckRestriction ?*/ document.location.host /*: $("meta[name=zina-filezmeta-domain]").attr("content")*/;
+		if (me.timestamp == 0) {
+			var countriesData = $("meta[name=zina-geoban-countries]").attr("content"),
+				timestampData = $("meta[name=zina-geoban-timestamp]").attr("content");
+			if (countriesData != undefined && timestampData != undefined) {
+				me.setCountries(countriesData.split(','));
+				me.setTimeStamp(parseInt(timestampData, 10));
+			}
+		}
+		if (tracks.length > 0) {
+			if (this.countries.length > 0) {
+				$.ajax({
+					url: (filezmetaDomain ? (("https:" == document.location.protocol ? "https://" : "http://") + filezmetaDomain) : "") + "/v2/checkRestriction",
+					type: "post",
+					contentType: "application/json; charset=utf-8",
+					dataType: "json",
+					data: JSON.stringify(this.fillCheckData(tracks)),
+					success: function (data) {
+						$.each(data.res, function (key, result) {
+							var keyArr = key.split("_");
+							if (keyArr.length > 1) {
+								var activity = keyArr[0];
+								var dKey = key.replace(activity + "_", "");
+								var trackEl = $("*[data-dkey='" + dKey + "']");
+								if (trackEl.length > 0 && !result) {
+									trackEl.addClass("track-dwnld-banned");
+
+									trackEl.find('.musicset-track__download').each(function () {
+										$(this).addClass('musicset-track__download--banned');
+										$(this).find('.musicset-track__download-link').attr('href', '/');
+									});
+								}
+							}
+						});
+					}
+				}).always(function () {
+					me.bindEvents();
+				});
+			} else {
+				me.bindEvents();
+			}
+		}
+	},
+	fillCheckData: function (tracks) {
+		var me = this;
+
+		var restrictions = {};
+		var geos = [];
+
+		$.each(this.countries, function (index, value) {
+			geos.push([value.country, value.state])
+		});
+
+		$.each(tracks, function (index, track) {
+			restrictions[track.activity + "_" + track.value] = {
+				"activity": track.activity,
+				"dKey": {"value": track.value},
+				"geo": geos,
+				"timestamp": me.timestamp
+			};
+		});
+
+		return {"list": restrictions};
+	},
+	ban: function (trackEl, countryCode, activity) {
+		if (activity === "streaming") {
+			//блокируем плей
+			trackEl.addClass("track-is-banned").data("country-code", countryCode);
+			trackEl.trigger("ban");
+		} else if (activity === "download") {
+			//блокируем скачку
+			trackEl.find(".track-geo").each(function () {
+				$(this).addClass("track-geo_banned");
+
+				$(this).find(".track-geo__button").each(function () {
+					var btn = $(this), newBtn;
+					if (this.tagName === "A") {
+						var href = this.href;
+						newBtn = ZINA.el("button." + this.className.split(" ").join("."), []);
+						newBtn.innerHTML = this.innerHTML;
+						$(newBtn).attr("disabled", "disabled").click(function () {
+							window.location.href = href;
+						});
+						btn.replaceWith(newBtn);
+					} else {
+						btn.attr("disabled", "disabled");
+					}
+				});
+			});
+
+			trackEl.find('.musicset-track__download').each(function () {
+				$(this).addClass('musicset-track__download--banned');
+				$(this).find('.musicset-track__download-link').attr('href', '/');
+			});
+
+			//проверяем на наличие ссылок на iTunes и googlePlay. Делать только на странице трека
+			if (document.location.pathname.indexOf("/pages/") > -1) {
+				var audioTrackDownload = $('.audiotrack-download');
+
+				if (audioTrackDownload.length > 0) {
+					trackEl.parents('#audiotrack-info').find(audioTrackDownload).attr('style', 'display: flex;')
+				}
+
+				trackEl.parents('#audiotrack-info').find('#button-download').hide();
+
+				var filezmetaDomain = $("meta[name=zina-filezmeta-domain]").attr("content"),
+					data = {"value": trackEl.data('dkey')};
+				$.ajax({
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					url: (filezmetaDomain ? (("https:" === document.location.protocol ? "https://" : "http://") + filezmetaDomain) : "") + "/externalLinks/get",
+					type: "post",
+					dataType: "json",
+					data: JSON.stringify(data),
+					success: function (data) {
+						var buttonsBlock = $("#audiotrack-buttons");
+						var itunesBtnExist = buttonsBlock.find(".audiotrack-button_download-itunes").length,
+							gpBtnExist = buttonsBlock.find(".audiotrack-button_download-gp").length;
+						if (data.links.iTunes && !itunesBtnExist) {
+							var iTunesButton = $("<div class='audiotrack-button download-button audiotrack-button_download-itunes'><a id='audiotrack-download-link--itunes' data-cacheable='false' class='audiotrack-button__label audiotrack-button__label_download download-button__label audiotrack-button__label_artist-page' href='" + data.links.iTunes + "' target='_blank'></a></div>");
+							buttonsBlock.prepend(iTunesButton);
+						}
+						if (data.links.googlePlay && !gpBtnExist) {
+							var googlePlayButton = $("<div class='audiotrack-button download-button audiotrack-button_download-gp'><a id='audiotrack-download-link--gplay' data-cacheable='false' class='audiotrack-button__label audiotrack-button__label_download download-button__label audiotrack-button__label_artist-page' href='" + data.links.googlePlay + "' target='_blank'></a></div>");
+							buttonsBlock.prepend(googlePlayButton);
+						}
+					}
+				})
+			}
+		}
+	},
+	bindEvents: function () {
+		$(".track-is-banned .track-geo__control, .track-geo_banned .track-geo__link").on("click", function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			var track = $(this), trackGeo, countryCode, flagClass, $dialog;
+			if (!track.hasClass("track-is-banned")) {
+				var temp = track.closest(".track-is-banned");
+				if (temp.length > 0) {
+					track = temp;
+				}
+			}
+			trackGeo = track.closest(".track-geo");
+			if (trackGeo.length == 0) {
+				trackGeo = track;
+			}
+			if (!track.hasClass("track-is-banned")) {
+				track = trackGeo.find(".track-is-banned");
+			}
+			ZINA.Player.pauseAll();
+			showGeoBanWindow();
+			countryCode = track.data("country-code") || '';
+			flagClass = "geo__content_" + countryCode;
+			$dialog = $(".geo__content");
+			var dialogClasses = $dialog.attr("class").split(" ");
+			for (var i = 0; i < dialogClasses.length; i++) {
+				if (dialogClasses[i].match(/geo__content_[a-z][a-z]/)) {
+					$dialog.removeClass(dialogClasses[i]);
+				}
+			}
+
+			if (!countryCode.length) {
+				$dialog.addClass("geo__content_track").addClass(flagClass)
+					.find(".geo-descr__country_eng").text(ZINA.defaults("ZINA.l10n.countries.eng", countryCode)).end()
+					.find(".geo-descr__country_rus").text(ZINA.defaults("ZINA.l10n.countries.rus", countryCode)).end()
+					.find(".geo-descr__track-name").text(trackGeo.find(".track-geo__title").text()).end()
+					.find("input[name='detectedGeoCountryName']").val(countryCode);
+				$dialog.find('.geo-info__all-tracks').hide();
+				$dialog.find('.geo__form-question').hide();
+				$dialog.find('.geo__description--country').hide();
+				$dialog.find('.geo__description--not-country').show();
+			} else {
+				$dialog.addClass("geo__content_track").addClass(flagClass)
+					.find(".geo-descr__country_eng").text(ZINA.defaults("ZINA.l10n.countries.eng", countryCode)).end()
+					.find(".geo-descr__country_rus").text(ZINA.defaults("ZINA.l10n.countries.rus", countryCode)).end()
+					.find(".geo-descr__track-name").text(trackGeo.find(".track-geo__title").text()).end()
+					.find("input[name='detectedGeoCountryName']").val(countryCode);
+				$dialog.find('.geo__description--country').show();
+				$dialog.find('.geo__description--not-country').hide();
+			}
+		});
+	}
+});
+
+ZINA.share = function (url, title) {
+	var options = {};
+	if (url != undefined) {
+		options.url = url;
+	}
+	if (title != undefined) {
+		options.title = title;
+	}
+	$(".button-share, .audiotrack-button_share").on("click", function (e) {
+		var $el = $(".share-button__likes", this);
+		if (!$el.hasClass("social-likes")) {
+			$el.socialLikes(options);
+		}
+		e.stopPropagation();
+		$(this).toggleClass("button-share__active");
+	});
+	$(".button-share__tooltip").click(function (e) {
+		e.stopPropagation();
+	});
+	$("html").click(function () {
+		$(".button-share, .audiotrack-button_share").removeClass("button-share__active");
+	});
+};

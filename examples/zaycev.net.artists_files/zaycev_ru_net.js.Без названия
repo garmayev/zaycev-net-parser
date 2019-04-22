@@ -1,0 +1,5 @@
+$(function(){
+	if (document.domain === "zaycev.ru.net") {
+		$(".contacts_email_link").text("admin@zaycev.ru.net").attr("href", "mailto:admin@zaycev.ru.net");	
+	}
+});

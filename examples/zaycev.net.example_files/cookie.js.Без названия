@@ -1,0 +1,69 @@
+window['ZINA'] = window['ZINA'] || {};
+
+ZINA.cookie = function (name, value, options) {
+
+	function is(type, obj) {
+		var cls = Object.prototype.toString.call(obj).slice(8, -1);
+		return obj !== undefined && obj !== null && cls === type;
+	}
+
+	function each(obj, callback) {
+		var key;
+		if (obj.length !== undefined) {
+			for (key = 0; key < obj.length; key++) {
+				if (callback(key, obj[key]) === false) {
+					break;
+				}
+			}
+		} else {
+			for (key in obj) {
+				if (obj.hasOwnProperty(key) && callback(key, obj[key]) === false) {
+					break;
+				}
+			}
+		}
+	}
+
+	function setCookie(name, value, options) {
+		var expires = '', date, path, domain, secure;
+		options = options || {};
+		if (value === null) {
+			value = '';
+			options.expires = -1;
+		}
+		if (options.expires) {
+			if (is("Number", options.expires)) {
+				date = new Date();
+				date.setTime(date.getTime() + (options.expires * 24 * 60 * 60 * 1000));
+			} else if (is("Date", options.expires)) {
+				date = options.expires;
+			}
+			if (date) {
+				expires = '; expires=' + date.toUTCString(); // use expires attribute, max-age is not supported by IE
+			}
+		}
+
+		path = options.path ? '; path=' + (options.path) : '';
+		domain = options.domain ? '; domain=' + (options.domain) : '';
+		secure = options.secure ? '; secure' : '';
+		document.cookie = [name, '=', encodeURIComponent(value), expires, path, domain, secure].join('');
+	}
+
+	function getCookie(name) {
+		var cookieValue = null;
+		if (document.cookie) {
+			name = name + "=";
+			each(document.cookie.split(';'), function (i, cookie) {
+				cookie = cookie.replace(/^\s+/, "").replace(/\s+$/, "");
+				// Does this cookie string begin with the name we want?
+				if (cookie.substring(0, name.length) === name) {
+					cookieValue = decodeURIComponent(cookie.substring(name.length));
+					return false;
+				}
+			});
+		}
+		return cookieValue;
+	}
+
+	return value === undefined ? getCookie(name) : setCookie(name, value, options);
+};

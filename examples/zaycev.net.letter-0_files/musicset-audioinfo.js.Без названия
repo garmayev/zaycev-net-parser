@@ -1,0 +1,739 @@
+(function () {
+
+	var adman = null,
+		dfd,
+		infoIsPlaying = false,
+		quartilePlayed = 0,
+		isMobile = $(".container-zaycev").length != 0,
+		modelTrack,
+		videoAdsSkip,
+		rmpVast,
+		volume,
+		tmpVolume;
+
+	function parseTime(t) {
+		var tar = t.split(":"),
+			sec = +tar.pop(),
+			multiplier = 60;
+		for (var i = 0; i < tar.length; i++, multiplier = multiplier * 60) {
+			sec += +tar.pop() * multiplier;
+		}
+		return sec;
+	}
+
+	var unknown = 8,
+		nAgt = navigator.userAgent,
+		os = unknown;
+	(function (window) {
+		{
+			var clientStrings = [
+				{s: 3, r: /(Windows 10.0|Windows NT 10.0)/},
+				{s: 3, r: /(Windows 8.1|Windows NT 6.3)/},
+				{s: 3, r: /(Windows 8|Windows NT 6.2)/},
+				{s: 3, r: /(Windows 7|Windows NT 6.1)/},
+				{s: 3, r: /Windows NT 6.0/},
+				{s: 3, r: /Windows NT 5.2/},
+				{s: 3, r: /(Windows NT 5.1|Windows XP)/},
+				{s: 3, r: /(Windows NT 5.0|Windows 2000)/},
+				{s: 3, r: /(Win 9x 4.90|Windows ME)/},
+				{s: 3, r: /(Windows 98|Win98)/},
+				{s: 3, r: /(Windows 95|Win95|Windows_95)/},
+				{s: 3, r: /(Windows NT 4.0|WinNT4.0|WinNT|Windows NT)/},
+				{s: 3, r: /Windows CE/},
+				{s: 3, r: /Win16/},
+				{s: 1, r: /Android/},
+				{s: 4, r: /Windows Phone/},
+				{s: 7, r: /SunOS/},
+				{s: 7, r: /(Linux|X11)/},
+				{s: 2, r: /(iPhone|iPad|iPod)/},
+				{s: 6, r: /Mac OS X/},
+				{s: 6, r: /(MacPPC|MacIntel|Mac_PowerPC|Macintosh)/},
+				{s: 7, r: /UNIX/},
+				{s: 5, r: /TV/}
+			];
+			for (var id in clientStrings) {
+				var cs = clientStrings[id];
+				if (cs.r.test(nAgt)) {
+					os = cs.s;
+					break;
+				}
+			}
+		}
+	}(this));
+
+	function renderDialog() {
+		$(".audio-info").remove();
+		var el = ZINA.el("div.audio-info.hidden", [
+			ZINA.el("div.audio-info__choose", [
+				ZINA.el("div.audio-info__banner", [
+					ZINA.el("div.audio-info__default-wrapper", [
+						ZINA.el("button.audio-info__muted", {
+							"title": "Выключить звук",
+							"html": '<svg viewBox="0 0 18 15">\n' +
+								'<path d="M2.035 9.46h2.263c.106 0 .21.032.296.094l3.778 2.661v-9.43L4.594 5.446a.511.511 0 0 1-.296.094H2.035v3.92zm6.854 4.279a.518.518 0 0 1-.296-.094l-4.458-3.14H1.517A.52.52 0 0 1 1 9.982V5.018a.52.52 0 0 1 .517-.523h2.618l4.458-3.14a.512.512 0 0 1 .535-.034c.171.09.279.269.279.463v11.432a.524.524 0 0 1-.518.523z"/>\n' +
+								'<path class="video-block__muted--enabled" d="M11.767 12.771a.525.525 0 0 1-.42-.827A7.636 7.636 0 0 0 12.758 7.5a7.633 7.633 0 0 0-1.411-4.443.525.525 0 0 1 .119-.728.511.511 0 0 1 .721.12A8.666 8.666 0 0 1 13.793 7.5a8.666 8.666 0 0 1-1.606 5.053.512.512 0 0 1-.42.218"/>\n' +
+								'<path class="video-block__muted--enabled" d="M14.584 14a.525.525 0 0 1-.42-.827A9.75 9.75 0 0 0 15.965 7.5a9.75 9.75 0 0 0-1.801-5.672.526.526 0 0 1 .119-.73.513.513 0 0 1 .721.12A10.79 10.79 0 0 1 17 7.5c0 2.271-.69 4.443-1.996 6.282a.512.512 0 0 1-.42.218"/>\n' +
+								'<path class="video-block__muted--disabled" d="M14.393 7.51l1.444-1.445a.621.621 0 0 0 0-.881.623.623 0 0 0-.883 0L13.51 6.627l-1.444-1.443a.623.623 0 1 0-.883.882l1.444 1.444-1.444 1.445a.623.623 0 1 0 .883.881l1.444-1.443 1.444 1.443a.618.618 0 0 0 .442.184c.16 0 .32-.06.44-.184a.621.621 0 0 0 0-.881z"/>\n' +
+								'</svg>'
+						}),
+						ZINA.el("div.audio-info-window__title", ["Рекламная пауза"]),
+						ZINA.el("div.audio-info-window__staywithus", ["Оставайтесь с нами, сайт продолжит работу через"]),
+						ZINA.el("div.clock"),
+						ZINA.el("a.audio-info__link.hidden", {"target": "_blank"}),
+						ZINA.el("div.audio-info__text.hidden"),
+						ZINA.el("div.audio-info__msg.audio-info__msg_skip-after", ["Пропустить через ", ZINA.el("span.audio-info__timer.audio-info__timer_after", [])]),
+						ZINA.el("div.audio-info__msg.audio-info__msg_skip", ["Пропустить"]),
+						ZINA.el("div.audio-info-window__reason", ["Реклама позволяет слушать ", ZINA.el("br"), "и скачивать музыку бесплатно"])
+					])
+				]),
+				ZINA.el("div.audio-info__msg.audio-info__msg_skip.audio-info__msg_titlebar", ["Пропустить"]),
+				ZINA.el("div.audio-info__msg.audio-info__msg_skip-after.audio-info__msg_titlebar", ["Пропустить рекламу через ", ZINA.el("span.audio-info__timer.audio-info__timer_after", [])]),
+				ZINA.el("div.audio-info__msg.audio-info__msg_no-skip.audio-info__msg_footer", ["Осталось ", ZINA.el("span.audio-info__timer.audio-info__timer_total", [])]),
+				ZINA.el("div.audio-info__close-btn", [])])]);
+		$("body").append(el);
+	}
+
+	function renderDialogWithBanner(bannerSrc, bannerWidth, bannerHeight) {
+		$(".audio-info").remove();
+		var el = ZINA.el("div.audio-info.hidden", [
+			ZINA.el("div.audio-info__choose", [
+				ZINA.el("div.audio-info__banner", [
+					ZINA.el("div.audio-info__default-wrapper", [
+						ZINA.el("button.audio-info__muted", {
+							"title": "Выключить звук",
+							"html": '<svg viewBox="0 0 18 15">\n' +
+								'<path d="M2.035 9.46h2.263c.106 0 .21.032.296.094l3.778 2.661v-9.43L4.594 5.446a.511.511 0 0 1-.296.094H2.035v3.92zm6.854 4.279a.518.518 0 0 1-.296-.094l-4.458-3.14H1.517A.52.52 0 0 1 1 9.982V5.018a.52.52 0 0 1 .517-.523h2.618l4.458-3.14a.512.512 0 0 1 .535-.034c.171.09.279.269.279.463v11.432a.524.524 0 0 1-.518.523z"/>\n' +
+								'<path class="video-block__muted--enabled" d="M11.767 12.771a.525.525 0 0 1-.42-.827A7.636 7.636 0 0 0 12.758 7.5a7.633 7.633 0 0 0-1.411-4.443.525.525 0 0 1 .119-.728.511.511 0 0 1 .721.12A8.666 8.666 0 0 1 13.793 7.5a8.666 8.666 0 0 1-1.606 5.053.512.512 0 0 1-.42.218"/>\n' +
+								'<path class="video-block__muted--enabled" d="M14.584 14a.525.525 0 0 1-.42-.827A9.75 9.75 0 0 0 15.965 7.5a9.75 9.75 0 0 0-1.801-5.672.526.526 0 0 1 .119-.73.513.513 0 0 1 .721.12A10.79 10.79 0 0 1 17 7.5c0 2.271-.69 4.443-1.996 6.282a.512.512 0 0 1-.42.218"/>\n' +
+								'<path class="video-block__muted--disabled" d="M14.393 7.51l1.444-1.445a.621.621 0 0 0 0-.881.623.623 0 0 0-.883 0L13.51 6.627l-1.444-1.443a.623.623 0 1 0-.883.882l1.444 1.444-1.444 1.445a.623.623 0 1 0 .883.881l1.444-1.443 1.444 1.443a.618.618 0 0 0 .442.184c.16 0 .32-.06.44-.184a.621.621 0 0 0 0-.881z"/>\n' +
+								'</svg>'
+						}),
+						ZINA.el("a.audio-info__link.hidden", {"target": "_blank"}, [
+							ZINA.el("img.audio-info__banner", {
+								"src": bannerSrc,
+								"width": bannerWidth,
+								"height": bannerHeight
+							})
+						]),
+						ZINA.el("p.video-block__message", ["Реклама позволяет слушать и качать музыку бесплатно.", ZINA.el("br"), "Сайт продолжит работу через несколько секунд."])
+					]),
+					ZINA.el("div.audio-info__msg.audio-info__msg_skip.audio-info__msg_titlebar", ["Пропустить"]),
+					ZINA.el("div.audio-info__msg.audio-info__msg_skip-after.audio-info__msg_titlebar", ["Пропустить рекламу через ", ZINA.el("span.audio-info__timer.audio-info__timer_after", [])]),
+					ZINA.el("div.audio-info__msg.audio-info__msg_no-skip.audio-info__msg_footer", ["Осталось ", ZINA.el("span.audio-info__timer.audio-info__timer_total", [])]),
+					ZINA.el("div.audio-info__close-btn", [])])])]);
+		$("body").append(el);
+	}
+
+	var Adfox = {
+		init: function () {
+			var me = this;
+			var video = document.getElementById('rmpPlayer');
+			var buttonMutedVideo = $('.video-block__muted');
+			var buttonMutedAudio = $('.audio-info__muted');
+
+			ZINA.Player
+				.on("play", function () {
+					if (infoIsPlaying) {
+						volume = ZINA.Player.volume;
+						tmpVolume = volume;
+
+						if (volume <= 0) {
+							buttonMutedAudio.addClass('muted');
+						} else {
+							buttonMutedAudio.removeClass('muted');
+						}
+					}
+				})
+				.on("complete", function () {
+					if (infoIsPlaying) {
+						infoIsPlaying = false;
+						$(".audio-info").dialog("destroy").remove();
+						dfd.resolve();
+						me.fire("complete", true);
+						ZINA.Player.setVolume(tmpVolume);
+						$('body').removeClass('overflow--hidden');
+					}
+				})
+				.on("tick", function (id, data, progress) {
+					if (infoIsPlaying) {
+						if (progress.rawData) {
+							progress.played = Math.min(100 * progress.played / me.duration, 100);
+							progress.buffered = Math.min(100 * progress.buffered / me.duration, 100);
+						}
+						var quartile = Math.floor(progress.played / 25),
+							played = Math.round((progress.played || 0) / 100 * me.duration);
+						if (quartile > quartilePlayed) {
+							quartilePlayed = quartile;
+							if (quartilePlayed == 1) {
+								me.fire("firstQuartile", true);
+							} else if (quartilePlayed == 2) {
+								me.fire("midpoint", true);
+							} else if (quartilePlayed == 3) {
+								me.fire("thirdQuartile", true);
+							}
+						}
+						$(".audio-info__timer_after").text(me.duration ? ZINA.Player.formatTime(me.skipTime - played) : "");
+						$(".audio-info__timer_total").text(me.duration ? ZINA.Player.formatTime(me.duration - played) : "");
+						if (me.skipTime == played) {
+							$(".audio-info__window_skip-after").removeClass("audio-info__window_skip-after").addClass("audio-info__window_skip");
+						}
+						if (me.skipTime2 == played) {
+							$(".audio-info__window_skip-after").addClass("audio-info__window_close");
+						}
+					}
+				})
+				.on("error", function (msg) {
+					if (infoIsPlaying && dfd) {
+						infoIsPlaying = false;
+						$(".audio-info").dialog("destroy").remove();
+						dfd.resolve();
+					}
+				});
+
+			video.addEventListener('adstarted', function () {
+				var title = rmpVast.getAdTitle();
+				var volume = Number((localStorage.getItem('zina.volume') / 100).toFixed(2));
+
+				$('.video-block').addClass('open');
+				$('body').addClass('overflow--hidden');
+
+				rmpVast.setMute(false);
+
+				if (title === 'Linear Video Ad') {
+					buttonMutedVideo.addClass('visible');
+
+					if (rmpVast.getMute()) {
+						buttonMutedVideo.addClass('muted');
+					} else {
+						buttonMutedVideo.removeClass('muted');
+					}
+				}
+
+				rmpVast.setVolume(volume);
+			});
+
+			video.addEventListener('adskipped', function () {
+				$('.video-block').removeClass('open');
+				$('body').removeClass('overflow--hidden');
+
+				videoAdsSkip = true;
+
+				modelTrack.play();
+				ZINA.Player.doPlay(modelTrack.toJSON().url);
+			});
+
+			video.addEventListener('adclick', function () {
+				$('.video-block').removeClass('open');
+				$('body').removeClass('overflow--hidden');
+
+				videoAdsSkip = true;
+
+				if (modelTrack) {
+					modelTrack.play();
+					ZINA.Player.doPlay(modelTrack.toJSON().url);
+				}
+			});
+
+			video.addEventListener('adcomplete', function () {
+				if (!videoAdsSkip) {
+					$('.video-block').removeClass('open');
+					$('body').removeClass('overflow--hidden');
+
+					modelTrack.play();
+					ZINA.Player.doPlay(modelTrack.toJSON().url);
+				}
+			});
+
+			video.addEventListener('aderror', function () {
+				$('.video-block').removeClass('open');
+				$('body').removeClass('overflow--hidden');
+
+				if (modelTrack) {
+					modelTrack.play();
+					ZINA.Player.doPlay(modelTrack.toJSON().url);
+				}
+			});
+
+			buttonMutedVideo.on('click', function () {
+				if ($(this).hasClass('muted')) {
+					$(this).removeClass('muted');
+					rmpVast.setMute(false);
+					$(this).attr('title', 'Выключить звук');
+				} else {
+					$(this).addClass('muted');
+					rmpVast.setMute(true);
+					$(this).attr('title', 'Включить звук');
+				}
+			});
+
+			$('body').on('click', '.audio-info__muted', function () {
+				if ($(this).hasClass('muted')) {
+					$(this).removeClass('muted');
+					ZINA.Player.setVolume(tmpVolume);
+					$(this).attr('title', 'Выключить звук');
+				} else {
+					$(this).addClass('muted');
+					ZINA.Player.setVolume(0);
+					$(this).attr('title', 'Включить звук');
+				}
+			});
+		},
+		load: function (timeout) {
+			var dfdLoad = $.Deferred(),
+				me = this,
+				options,
+				optionsAds;
+			if (ZINA.cookie("mstaudinf")) {
+				dfdLoad.reject();
+			} else if (!ZINA.cookie("mstaudinf2")) {
+				var date = new Date(),
+					seconds = parseInt(ZINA.defaults("ZINA.Musicset.AudioInfo", "expires2"));
+				if (isNaN(seconds) || seconds <= 0) {
+					seconds = 14400;
+				}
+				date.setTime(date.getTime() + seconds * 1000);
+				ZINA.cookie("mstaudinf2", "1", {expires: date, path: "/"});
+				dfdLoad.reject();
+			} else {
+				var trackId = ZINA.cookie("currentTrackId"),
+					url = "https://daast.digitalbox.ru/?plid=10&ref=&puid5=" + os + "&eid1=interakt&dl=" + encodeURIComponent(document.location.href),
+					defaultUrl = "https://daast.digitalbox.ru/vast/3364?puid1=267&puid2=&puid3=2&puid4=1&puid5=" + os + "&eid1=interakt&dl=" + encodeURIComponent(document.location.href),
+					videoUrl = "https://ads.adfox.ru/220463/getCode?p1=cedpx&p2=frxu",
+					waterflow = $("meta[name=zina-player-audioinfo-waterflow]").attr("content").length > 0;
+
+				function vastData(vast) {
+					var randomish = Math.floor((Math.random() * 100000000));
+					if ($("#digitalpixel1").length == 0) {
+						$("body").append("<img src='//rs.mail.ru/d21216889.gif?_=" + randomish + "' style='width:0;height:0;position:absolute;visibility:hidden;' alt='' id='digitalpixel1'/>");
+					} else {
+						$("#digitalpixel1").remove();
+						$("body").append("<img src='//rs.mail.ru/d21216889.gif?_=" + randomish + "' style='width:0;height:0;position:absolute;visibility:hidden;' alt='' id='digitalpixel1'/>");
+					}
+					me.duration = parseTime(vast.find("Duration").text());
+					me.skipTime = parseTime(vast.find("Extension[type='skipTime']").text());
+					var bannerId;
+					if (isMobile) {
+						bannerId = 5;
+					} else {
+						bannerId = 11;
+					}
+					me.banner = vast.find("Icon[id='" + bannerId + "'] StaticResource").text().trim();
+					me.bannerWidth = vast.find("Icon[id='" + bannerId + "']").attr("width");
+					me.bannerHeight = vast.find("Icon[id='" + bannerId + "']").attr("height");
+					me.timeout = 60;
+					if (vast.find("Extension[type='skipTime2']").text().trim() === "") me.skipTime2 = 60;
+					else me.skipTime2 = parseTime(vast.find("Extension[type='skipTime2']").text());
+					me.controls = !!+vast.find("Extension[type='controls']").text();
+					if (me.controls) {
+						if (me.skipTime < me.duration) {
+							if (me.skipTime == 0) {
+								me.dialogClass = " audio-info__window_skip";
+							} else {
+								me.dialogClass = " audio-info__window_skip-after";
+							}
+						} else {
+							me.dialogClass = " audio-info__window_no-skip";
+						}
+						if (me.skipTime2 == 0) {
+							me.dialogClass += " audio-info__window_close";
+						}
+					} else {
+						me.dialogClass = " audio-info__window_no-skip";
+					}
+					if (me.banner.length == 0 || me.banner == undefined) {
+						me.dialogClass += " audio-info__countdown";
+					}
+
+					me.Impression = vast.find("Impression");
+					me.trackingEvents = vast.find("TrackingEvents");
+					me.skipAd = vast.find("Extension[type='skipAd']").text();
+					me.addClick = vast.find("Extension[type='addClick']").text();
+					me.linkTxt = decodeURIComponent(vast.find("Extension[type='linkTxt']").text());
+					me.isClickable = !!+vast.find("Extension[type='isClickable']").text();
+					me.ClickThrough = vast.find("VideoClicks ClickThrough").text();
+					me.mp3 = vast.find("MediaFile[type='audio/mpeg']").text().trim();
+
+					if (me.mp3) {
+						if (me.banner.length == 0 || me.banner == undefined) {
+							renderDialog();
+							var clock = $('.clock').FlipClock({clockFace: 'MinuteCounter'});
+							clock.setTime(me.duration);
+							clock.setCountdown(true);
+						} else {
+							renderDialogWithBanner(me.banner, me.bannerWidth, me.bannerHeight);
+						}
+						if (me.isClickable) {
+							if (me.ClickThrough) {
+								$(".audio-info__link").attr("href", me.ClickThrough)
+									.click(function () {
+										me.fire(me.addClick);
+									}).removeClass("hidden");
+								if (me.banner.length == 0 && me.linkTxt) {
+									$(".audio-info__link").empty().html(me.linkTxt).removeClass("hidden");
+								}
+
+							} else {
+								if (me.banner.length == 0) {
+									$(".audio-info__link").empty().html(me.linkTxt).removeClass("hidden");
+								} else {
+									$(".audio-info__text").removeClass("hidden");
+								}
+							}
+						} else if (me.banner.length) {
+							$(".audio-info__link").removeClass("hidden");
+						}
+						$(".audio-info__close-btn").click(function () {
+							me.onClose();
+							$('body').addClass('overflow--hidden');
+						});
+						$(".audio-info__msg_skip").click(function () {
+							me.fire(me.skipAd);
+							ZINA.Player.complete();
+							infoIsPlaying = false;
+							$(".audio-info").dialog("destroy").remove();
+							dfdLoad.resolve();
+							$('body').addClass('overflow--hidden');
+						});
+						me.Impression.each(function (key, ele) {
+							me.fire($(ele).text());
+						});
+					}
+				}
+
+				function checkVideoAds(videoUrl) {
+					if (ZINA.cookie("videoAds") || ZINA.defaults("ZINA.Musicset.AudioInfo", "videoAds") !== "true") {
+						options = {
+							url: "https://banners.adfox.ru/transparent.gif",
+							dataType: "html",
+							success: function () {
+
+								videoAdsSkip = false;
+
+								ZINA.Player.doPause();
+
+								var id = 'rmpPlayer';
+								var params = {
+									ajaxTimeout: 8000,
+									skipMessage: 'Пропустить',
+									skipWaitingMessage: 'Пропустить через',
+									textForClickUIOnMobile: 'Подробнее'
+								};
+
+								rmpVast = new RmpVast(id, params);
+
+								rmpVast.loadAds(videoUrl);
+
+								dfdLoad.resolve();
+							},
+							error: function () {
+								if (modelTrack) {
+									modelTrack.play();
+									ZINA.Player.doPlay(modelTrack.toJSON().url);
+								}
+								dfdLoad.reject();
+							}
+						};
+
+						$.ajax(options);
+					} else {
+						dfdLoad.reject();
+					}
+				}
+
+				function queryStandardAds(url, videoUrl) {
+					options = {
+						url: url,
+						xhrFields: {
+							withCredentials: true
+						},
+						dataType: "xml",
+						success: function (data) {
+							var vast = $(data);
+							if (vast) {
+								if (vast.find("Duration") && vast.find("Duration").length > 0 && !ZINA.cookie("videoAds")) {
+									vastData(vast);
+								} else {
+									checkVideoAds(videoUrl);
+								}
+							}
+							dfdLoad.resolve();
+						},
+						error: function () {
+							checkVideoAds(videoUrl);
+						}
+					};
+					if (timeout != undefined) {
+						options.timeout = timeout;
+					}
+					var randomish = Math.floor((Math.random() * 100000000));
+					if ($("#digitalpixel").length == 0) {
+						$("body").append("<img src='//rs.mail.ru/d20802152.gif?_=" + randomish + "' style='width:0;height:0;position:absolute;visibility:hidden;' alt='' id='digitalpixel'/>");
+					} else {
+						$("#digitalpixel").remove();
+						$("body").append("<img src='//rs.mail.ru/d20802152.gif?_=" + randomish + "' style='width:0;height:0;position:absolute;visibility:hidden;' alt='' id='digitalpixel'/>");
+					}
+					$.ajax(options);
+				}
+
+				function queryWaterflowAds(url, defaultUrl, videoUrl) {
+					optionsAds = {
+						url: url,
+						xhrFields: {
+							withCredentials: true
+						},
+						dataType: "xml",
+						success: function (data) {
+							var vast = $(data),
+								ads = [],
+								defaultLink = {
+									url: defaultUrl
+								},
+								videoLink = {
+									url: videoUrl
+								};
+
+							vast.find('Ad').each(function (index) {
+								ads[index] = {
+									id: $(this).attr('id'),
+									url: ("https:" === document.location.protocol ? "https:" : "http:") + $(this).find('VASTAdTagURI').text().trim(),
+									error: $(this).find('Error').text().trim(),
+									impression: $(this).find('Impression').text().trim(),
+									clickTracking: $(this).find('ClickTracking').text().trim()
+								}
+							});
+
+							ads.push(defaultLink, videoLink);
+
+							function check(arr, index) {
+								var length = arr.length;
+
+								options = {
+									url: arr[index].url,
+									xhrFields: {
+										withCredentials: true
+									},
+									dataType: "xml",
+									success: function (data) {
+										var vast = $(data);
+										if (vast) {
+											if (vast.find("Duration") && vast.find("Duration").length > 0) {
+												vastData(vast);
+											} else {
+												if (index + 1 < length) {
+													return check(ads, index + 1);
+												}
+											}
+										}
+										dfdLoad.resolve();
+									},
+									error: function () {
+										dfdLoad.reject();
+									}
+								};
+								if (timeout != undefined) {
+									options.timeout = timeout;
+								}
+								var randomish = Math.floor((Math.random() * 100000000));
+								if ($("#digitalpixel").length == 0) {
+									$("body").append("<img src='//rs.mail.ru/d20802152.gif?_=" + randomish + "' style='width:0;height:0;position:absolute;visibility:hidden;' alt='' id='digitalpixel'/>");
+								} else {
+									$("#digitalpixel").remove();
+									$("body").append("<img src='//rs.mail.ru/d20802152.gif?_=" + randomish + "' style='width:0;height:0;position:absolute;visibility:hidden;' alt='' id='digitalpixel'/>");
+								}
+								$.ajax(options);
+							}
+
+							return check(ads, 0);
+						},
+						error: function () {
+							dfdLoad.reject();
+						}
+					};
+					if (timeout != undefined) {
+						optionsAds.timeout = timeout;
+					}
+					return $.ajax(optionsAds);
+				}
+
+				if (trackId && trackId !== null) {
+					fetch('/interaktive/track/' + trackId)
+						.then(function (res) {
+							return res.json();
+						})
+						.then(function (res) {
+							var genre = '';
+							if (res.genre && res.genre.length) {
+								for (var i = 0; i < res.genre.length; i++) {
+									genre += res.genre.length - 1 !== i ? res.genre[i] + ',' : res.genre[i];
+								}
+							} else {
+								genre = '';
+							}
+							var releaseDate = res.releaseDate !== 'null' ? res.releaseDate : '';
+							var queryAttribute = '&rdate=' + releaseDate + '&title=' + res.title + '&artist=' + res.author + '&genre=' + genre;
+							var urlAds = url + queryAttribute;
+							if (!waterflow) {
+								queryWaterflowAds(urlAds, defaultUrl + queryAttribute, videoUrl);
+							} else {
+								queryStandardAds(defaultUrl + queryAttribute, videoUrl);
+							}
+						});
+				} else {
+					if (!waterflow) {
+						queryWaterflowAds(url, defaultUrl, videoUrl);
+					} else {
+						queryStandardAds(defaultUrl, videoUrl);
+					}
+				}
+			}
+			return dfdLoad.promise();
+		},
+		start: function () {
+			quartilePlayed = 0;
+			infoIsPlaying = true;
+			if (this.mp3) {
+				ZINA.Player.doPlay(this.mp3);
+				this.fire(("https:" === document.location.protocol ? "https:" : "http:") + "//rttr2.zaycev.net/onsh?dt=hVmPpYlDPUu-2RBPEfhRd1eeIAkmvuyEEnV5gU6ebMlxQe3RlZ3iTE7Zw5Tle-0NO2XfdojGPjDM8uf1yGBpXIqtjtNhNl-FzVy9SoGeum9zl6R2hBrJ_2_u5KnVpEaVFLNhug");
+				this.fire("creativeView", true);
+				this.fire("start", true);
+			}
+		},
+		onClose: function () {
+			ZINA.Player.doPause();
+			infoIsPlaying = false;
+			if (this.mp3) {
+				$(".audio-info").dialog("destroy").remove();
+			}
+
+			dfd.resolve();
+			this.fire("close", true);
+			$('body').addClass('overflow--hidden');
+		},
+		fire: function (url, find) {
+			if (find) {
+
+				var eventsAdvBunny = {
+					views: "https://rttr2.zaycev.net/onsh?dt=5vGHLJqL4QRwZQHJQx-n8DN2IS0pJ9grJnd0FC2nx3jwElEQeitaKSEM_lo7MFAVNJ_pt10xdhW7jp7pc4BAkODxidZuVVUug8PRHTiwpXdQS-Pw2h5SWx60Q_Qcp6CqUCXMwg",
+					click: "https://rttr2.zaycev.net/onsh?dt=CfWdbaWDtD0XP4LAXfdGG-NgF2x_ZdNL7v9vaj_RGeokuzw6wP4o07JvvYrvJeyBeks8pHI6-hSGt_c8EAO-xYHTC-QkqNI9fe3Lakb-pV_KY-oECDtWc0syT6Rx_Z5nsvpbCA",
+					impression: "https://rttr2.zaycev.net/onsh?dt=G3rhCzVWoWKq3aFTbLoCb103Z0l4uJ4yRfsO-uDOrhQP4iDmVBsQkpAXE7o3P0mb6g5ze-dqeLl52W3waz0JWk_eT_4sftsZcUoCFW3Fdz8V_ZpIUqwwPdPeTM3duwwEhVViwg",
+					creativeView: "https://rttr2.zaycev.net/onsh?dt=iiCiFdA6IIKJuXMtDHJLjMfmWGm4Wneq2w1uhCYT7Rj1Iyk3i-RBhRd7-SzEZu-a8L9R-L_cd1Bw2ukoE71nF-yA0fO2UH1TpY5GGTBSXWybuEKoR4y1g78DMrMTskB7trb_7g",
+					start: "https://rttr2.zaycev.net/onsh?dt=vrXJXvA8Kxdiv4s30x1N954yjzQbSxS856xagB3aPBk8qd58sVwQq2Gao08kdw74oIJqksmPhK0U_0hyT-3kB7YQBAI_kH7R7F_otJVntD3dD_TBv-NMhjZl1PbeZJZ7GErZdA",
+					firstQuartile: "https://rttr2.zaycev.net/onsh?dt=uMKKECOrExSVllvbkSQqOf3EVLa4_DMyzfFPPh3M1yGcaZQ2BpmQEkTZ4kltrADTAxm6gZ7V_Oj6upl6OdRotTyK-OZG7YnjBJTA7tBohmPd36SAPBhZrG6O8gOrdZLszUnJGg",
+					midpoint: "https://rttr2.zaycev.net/onsh?dt=qJKp1-w6tIsorJeeCBoy0UkiYk4Cl-zZ47Z2oqlJ2WnquWGr7EndhQS8ySTjENg6978ReWrJiM-Fv3RSE-OCdLFFLdlPjX4xkl5MXRceRgleL6kniQ_omXUDz5MXAE2CsKDzPw",
+					thirdQuartile: "https://rttr2.zaycev.net/onsh?dt=B7wzxsNg_at0yNEWANSfxAMcLbTMNkfzHWhT-u8k_LNz_RbX94XlfQAoTlS3l_Ba8sCd42131w2tSySSR3AQ55pQySgm8q-Krjsta9HeeAbofIObRxOl0mz-CwhGLMos6jd-cw",
+					complete: "https://rttr2.zaycev.net/onsh?dt=OI9nZ6wOBTW26VjAn3MwyFKaJFRFKlaFEmnVV7GZlrID2oj7hFxknhBEyI9y9UpmROZCyU3TF0qjOMUsC95-cDYddkM9O35Mfo5Z-jsR9cScu3gxvb9xKhEAfdC_vzjBNukjXA",
+					mute: "https://rttr2.zaycev.net/onsh?dt=3tyS6Rbuy8NnPFr65_UexVuEelHhW2MN5vTs6K_iybQeXSq20XNw09DqeStm22H63iw3ZlsZX-jxowAzysQNyP8mcKfmIHoLACLJieJ2vwhhVtO_6PxcRNC6C0mvIQ9CDdLjtg",
+					unmute: "https://rttr2.zaycev.net/onsh?dt=_x4WSViPN0NZ6Ap7s-TKXWFt1sgc0ddyULLSg1CPAVvpo8k2vY_dYjSbY5WkKjy1HIm1o6UgE1PQCG3b2FiJMAiMQw82tph_wZ4BxbO9jwiYHUDha70pU8rWKqkDKqSIxzCxRQ",
+					pause: "https://rttr2.zaycev.net/onsh?dt=Hy_mUlJ3U70Ip1tT09G0tJsv2vTb6G7UO7D5j1c4W2RGgRXoTWYWYpIkp4kx3ncdGdhn_R8LPG5fWNST2MtaZz23D4AZbO9x5W_RI1jMtxJsiaqRid9bUS2mihAQN3_ddReF6Q",
+					resume: "https://rttr2.zaycev.net/onsh?dt=fimuhqoaUlyRfHAQlJ51gbdNz1qC_sSFtxeT5boXkosysO6uUstX2PC2hJSmy_jllKz6Od8y7UtBMSvSD33IQtklIo4Srwz2DKouX9q2kh1xC6yJPMqyk7CwR10p1F5HxcqL7A",
+					close: "https://rttr2.zaycev.net/onsh?dt=XY30B9aXjAqCVOnYG33ezh9SYUHEHVbSgBtzRfuY3ZbM570Kuq0cUl1RWge2BlvepFpKCPkmfUCoal0W9dYSX4oJ2SxdNQjA4RMTdRCO9zeFnA8xky1nJ0X-GWG6uibExtMRYA",
+					addClick: "https://rttr2.zaycev.net/onsh?dt=xpZ0aLfPZLbtluuSyA_9OoOL7IeCyb-EQCQwCE1fBlYaX4KWheCSvnEkzrHluxs7nvP8Mlu_2-uLB_ZBqSLOJYjPrfMX4fdwhtKYl7cA9JPwzg1XiWVPEAEMISK3HYxB1o4p5g",
+					error: "https://rttr2.zaycev.net/onsh?dt=pi-gGZIoqfa0jeTMT0NBJU_ifTDvSYqv5QbcEigH5z4bSHMpS-3lJXWsRRDsv01spgB1JzKozcEduCtzRjyx5JmBenvWozAfpTm_MpZQOCoIzdRmMQpGbATE76a23uslnhK_KQ"
+				};
+
+				if (ZINA.defaults("ZINA.Musicset.AudioInfo", "counter") && eventsAdvBunny[url]) {
+					$.getJSON(eventsAdvBunny[url]);
+				}
+
+				if (this.trackingEvents.find("Tracking[event='" + url + "']").length > 1) {
+					this.trackingEvents.find("Tracking[event='" + url + "']").each(function () {
+						url = $(this).text().trim();
+						nock(url);
+
+					});
+				} else {
+					url = this.trackingEvents.find("Tracking[event='" + url + "']").text().trim();
+					nock(url);
+				}
+
+			} else {
+				nock(url);
+			}
+
+			function nock(url) {
+				var img = new Image();
+				img.src = url;
+			}
+		}
+	};
+
+	var AudioInfo = Backbone.Model.extend({
+		initialize: function () {
+			var type = ZINA.defaults("ZINA.Musicset.AudioInfo", "type");
+			if (type == "adfox") {
+				_.extend(this, Adfox);
+				this.init();
+			}
+		},
+		isPlaying: function () {
+			return infoIsPlaying;
+		},
+		load: function () {
+			return $.Deferred().reject().promise();
+		},
+		show: function (model) {
+			modelTrack = model;
+			var me = this,
+				clock,
+				$dialog = $(".audio-info"),
+				$video = $(".video-block");
+			dfd = $.Deferred();
+			if (($dialog.length > 0 || $video.length > 0) && !ZINA.cookie("mstaudinf")) {
+				var date = new Date(),
+					seconds = parseInt(ZINA.defaults("ZINA.Musicset.AudioInfo", "expires"));
+				if (isNaN(seconds) || seconds <= 0) {
+					seconds = 3600;
+				}
+				date.setTime(date.getTime() + seconds * 1000);
+				ZINA.cookie("mstaudinf", "1", {expires: date, path: "/"});
+				me.start();
+				$(".audio-info").removeClass("hidden").dialog({
+					dialogClass: "audio-info__window" + me.dialogClass,
+					modal: ZINA.defaults("ZINA.Musicset.AudioInfo", "modal", true),
+					width: 'auto',
+					minHeight: 'auto',
+					closeOnEscape: false,
+					draggable: false,
+					resizable: false
+				});
+
+				$('body').addClass('overflow--hidden');
+
+				clock = $('.clock', $dialog);
+				if (clock) {
+					clock = clock.FlipClock({clockFace: 'MinuteCounter'});
+					clock.setCountdown(true);
+					clock.setTime(me.duration);
+				}
+				if (me.onClose) {
+					$(".ui-dialog-titlebar-close").click(function () {
+						me.onClose()
+					});
+				}
+			} else {
+				dfd.resolve();
+			}
+			return dfd.promise();
+		}
+	});
+
+	(function () {
+		var infoInstance = null;
+		ZINA.namespace("ZINA.Musicset", {
+			AudioInfo: function () {
+				if (!infoInstance) {
+					ZINA.defaults("ZINA.Musicset.AudioInfo", {
+						"type": $("meta[name=zina-player-audioinfo-type]").attr("content"),
+						"expires": $("meta[name=zina-player-audioinfo-expires]").attr("content"),
+						"expires2": $("meta[name=zina-player-audioinfo-expires2]").attr("content"),
+						"modal": $("meta[name=zina-player-audioinfo-modal]").attr("content"),
+						"counter": $("meta[name=zina-player-audioinfo-counter]").attr("content"),
+						"videoAds": $("meta[name=zina-video-ads]").attr("content")
+					});
+					infoInstance = new AudioInfo();
+				}
+				return infoInstance;
+			}
+		});
+	}());
+}());

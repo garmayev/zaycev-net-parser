@@ -1,0 +1,300 @@
+(function () {
+
+	var URL = "/suggest/";
+
+	var MIN_DELAY = 100, MAX_DELAY = 1000, AVERAGE_LIMIT = 5;
+
+	var root, inputEle, lastEle, timeoutId = 0;
+
+	function isSupportOpacity() {
+		return $.support && $.support.opacity || $("html").hasClass("opacity");
+	}
+
+	var SolrRequester = (function () {
+
+		var cache = {}, last = "",
+			timing = [MIN_DELAY], lastTime = +(new Date());
+
+		function cumputeDelay() {
+			var currentTime = +(new Date()),
+				delta = currentTime - lastTime,
+				delay = 0, i;
+
+			lastTime = currentTime;
+
+			if (delta < MAX_DELAY) {
+				// заносим только результаты превышающие интервал ожидания
+				timing.push(delta);
+				if (timing.length > AVERAGE_LIMIT) {
+					timing = timing.slice(1, AVERAGE_LIMIT + 1); // оставляем N последних замеров
+				}
+			}
+			// считаем среднее время нажимания кнопок
+			for (i = timing.length; i--;) {
+				delay = delay + timing[i];
+			}
+			delay = timing.length ? Math.round(delay / timing.length) : 0;
+
+			return delay < MIN_DELAY ? MIN_DELAY : delay;
+		}
+
+		return function (value, callback) {
+
+			value = $.trim("" + value).toLocaleLowerCase();
+
+			var delay = cumputeDelay();
+
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = 0;
+			}
+
+			if (value.length >= 3 && value !== last) {
+				if (cache[value]) {
+					callback(cache[value]);
+				} else {
+					timeoutId = setTimeout(function () {
+						var opts = {
+							url: ZINA.defaults("ZINA.SearchSuggest").url || URL,
+							dataType: "json",
+							cache: true,
+							timeout: 5000,
+							data: {
+								"terms.prefix": value
+							},
+							success: function (data) {
+								cache[value] = data;
+								callback(data);
+							},
+							error: function () {
+								S.destroy();
+							}
+						};
+
+						if (ZINA.defaults("ZINA.SearchSuggest").outer) {
+							// запрос на внешний сервер
+							$.extend(opts, {
+								dataType: "jsonp",
+								jsonp: "json.wrf"
+							});
+						}
+
+						$.ajax(opts);
+					}, delay * 1.5);
+				}
+			}
+
+			last = value;
+		};
+
+	}());
+
+	var S = ZINA.namespace("ZINA.SearchSuggest", {
+
+		init: function () {
+			$(function () {
+				ZINA.defaults("ZINA.SearchSuggest",{url: $("meta[name=zina-search-suggest]").attr("content")});
+				$(".header div.header-search input[name=query_search], " +
+					".header div.header-search input[name=q], " +
+					".container-zaycev.mobile input[name=query_search], " +
+					"#search-page input[name=query_search], " +
+					".error__container div.header-search input[name=q]").each(function () {
+					ZINA.SearchSuggest.bind($(this));
+				});
+			});
+		},
+
+		bind: function (ele) {
+			sButton = $(".header-search .submit");
+			sButton.attr("disabled",true);
+			var inputEle = ele.addClass("search-suggester-field");
+
+			inputEle.bind("input", function () {
+				lastEle = this;
+				var value = $(this).val();
+				if (value) {
+					sButton.attr("disabled",false);
+				} else {
+					sButton.attr("disabled",true);
+				}
+			});
+
+			inputEle.bind("keyup.suggest", function (e) {
+				lastEle = this;
+				var value = $(this).val();
+				if (value) {
+					if (e.which !== 40 && e.which !== 38) {
+						SolrRequester(value, S.show);
+					}
+
+					sButton.attr("disabled",false);
+				} else {
+					S.hide();
+					sButton.attr("disabled",true);
+				}
+			}).bind("keydown.suggest", function (e) {
+				lastEle = this;
+				switch(e.which) {
+					case 13:
+						// enter
+					    if (S.hasSelected()) {
+							S.findSelected();
+							e.preventDefault();
+						}
+						break;
+					case 27:
+						S.hide();
+						e.preventDefault();
+						break;
+					case 38:
+						// cursor up
+						S.selectPrev();
+                        $(lastEle)[0].value = $("li.search-suggest-item-active div.search-suggest-item-block").text();
+						e.preventDefault();
+						break;
+					case 40:
+						// cursor down
+						S.selectNext();
+                        $(lastEle)[0].value = $("li.search-suggest-item-active div.search-suggest-item-block").text();
+						e.preventDefault();
+						break;
+					default:
+				}
+			});
+
+			// label decoration
+			inputEle.siblings("label").each(function () {
+				var label = $(this),
+					box = label.closest("div");
+
+				function fade() {
+					if (isSupportOpacity()) {
+						label[box.hasClass("filled") || box.hasClass("active") ? "fadeOut" : "fadeIn"]("fast");
+					} else {
+						label.css("display", box.hasClass("filled") || box.hasClass("active") ? "none" : "block");
+					}
+				}
+
+				label.css("display", "none").removeClass("hidden");
+
+				inputEle.bind("focus", function () {
+					box.addClass("active");
+					fade();
+				}).bind("blur", function () {
+					box.toggleClass("filled", inputEle.val() !== "").removeClass("active");
+					fade();
+				}).triggerHandler("blur");
+			});
+
+			root = $('<div class="search-suggest"><iframe frameborder="0" class="search-suggest-shim" src="about:blank"></iframe></div>').appendTo("body");
+
+			$("div.search-suggest li.search-suggest-item").live("click.suggest", function () {
+				$(this).addClass("search-suggest-item-active")
+					.siblings().removeClass("search-suggest-item-active");
+				S.findSelected();
+			});
+		},
+
+		destroy: function () {
+			$("search-suggester-field").unbind(".suggest");
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = 0;
+			}
+			root.remove();
+		},
+
+		show: function (data) {
+			var list = [];
+
+			if (data && data.terms && data.terms.content_auto) {
+
+				$.each(data.terms.content_auto, function (str, weight) {
+					list.push('<li class="search-suggest-item"><div class="search-suggest-item-block">' + str + '</div></li>');
+				});
+
+				if (list.length) {
+					$("ul.search-suggest-list", root).remove();
+
+					root.prepend('<ul class="search-suggest-list">' + list.join('') + '</ul>')
+							.css((function (ele) {
+								var pos = ele.offset();
+								return {
+									left: Math.round(pos.left - 1),
+									top: Math.round(pos.top + ele.outerHeight()),
+									width: Math.round(ele.outerWidth() + 1)
+								};
+							}($(lastEle).parent())));
+
+					root.find("li.search-suggest-item").hover(function () {
+						$(this).addClass("search-suggest-item-hover");
+					}, function () {
+						$(this).removeClass("search-suggest-item-hover");
+					});
+
+					if (!root.hasClass("search-suggest-visible")) {
+						$(document).one("click", S.hide);
+					}
+
+					root.addClass("search-suggest-visible")
+						.find(".search-suggest-shim").height(root.height());
+
+					return;
+				}
+			}
+
+			S.hide();
+		},
+
+		hide: function () {
+			root.removeClass("search-suggest-visible");
+		},
+
+		selectNext: function () {
+			var selected = root.find("li.search-suggest-item-active"), target;
+
+			if (selected.length) {
+				if (selected.next("li").length) {
+					target = selected.removeClass("search-suggest-item-active").next("li");
+				}
+			} else {
+				target = root.find("li.search-suggest-item:first");
+			}
+
+			if (target) {
+				target.addClass("search-suggest-item-active");
+			}
+		},
+
+		selectPrev: function () {
+			var selected = root.find("li.search-suggest-item-active"), target;
+
+			if (selected.length) {
+				if (selected.prev("li").length) {
+					target = selected.removeClass("search-suggest-item-active").prev("li");
+				}
+			} else {
+				target = root.find("li.search-suggest-item:last");
+			}
+
+			if (target) {
+				target.addClass("search-suggest-item-active");
+			}
+		},
+
+		findSelected: function () {
+			S.hide();
+			$(lastEle)
+					.val(root.find("li.search-suggest-item-active div.search-suggest-item-block").text())
+					.closest("form").trigger("submit");
+		},
+
+		hasSelected: function () {
+			return root.find("li.search-suggest-item-active").length !== 0;
+		}
+
+	});
+
+}());
+
+ZINA.SearchSuggest.init();

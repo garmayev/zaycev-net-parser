@@ -1,0 +1,559 @@
+(function () {
+
+	var boundOnce = false,
+		CLS_PLAY = ".musicset-track_play",
+		preroll = false, prerollTimeout;
+
+	function moveVolumeSlider(position, left) {
+		$(".z-progress__level_volume").width(position + '%');
+		$(".z-progress__slider_volume").css("left", left + 'px');
+		$(".z-progress__tooltip-text_volume").text(position);
+	}
+
+	function createList(root, player, info, options) {
+
+		var list = new ZINA.Musicset.List();
+
+		new ZINA.Musicset.ListView({
+			collection: list,
+			el: root
+		});
+
+		_.forEach(ZINA.Musicset.ListView.createData(root), function (data) {
+			list.add(data);
+		});
+
+		list
+			.on("playTrack", function (model) {
+				if ((navigator.userAgent.indexOf('Opera Mini') > -1) && $("meta[name=zina-player-operamini-check]").attr("content") == "true") {
+					alert("Чтобы прослушивать музыку отключите режим экстремальной экономии трафика в Opera Mini или используйте другой браузер.");
+				} else if (info && preroll) {
+					ZINA.cookie("currentTrackId", model.id);
+
+					info.load(prerollTimeout)
+						.done(function () {
+							setTimeout(function () {
+								info.show(model).done(function () {
+									model.play();
+									player.play(model.toJSON());
+								});
+							}, 10);
+						})
+						.fail(function () {
+							player.play(model.toJSON());
+						});
+				} else {
+					player.play(model.toJSON());
+				}
+			})
+			.on("pauseTrack", function (model) {
+				player.pause(model.toJSON());
+			})
+			.on("resumeTrack", function (model) {
+				player.resume(model.toJSON());
+			})
+			.on("stopTrack", function (model) {
+				player.stop(model.toJSON());
+			});
+
+		var lastPlayed;
+
+		function findNextTrack(idx) {
+			if (ZINA.defaults("ZINA.Player", "geoBan", false)) {
+				for (; idx < list.length; idx++) {
+					if (list.at(idx).get("unbanned")) break;
+				}
+			} else {
+				for (; idx < list.length; idx++) {
+					if (!list.at(idx).get("banned")) break;
+				}
+			}
+			return idx;
+		}
+
+		function findPrevTrack(idx) {
+			if (ZINA.defaults("ZINA.Player", "geoBan", false)) {
+				for (; idx >= 0; idx--) {
+					if (list.at(idx).get("unbanned")) break;
+				}
+			} else {
+				for (; idx >= 0; idx--) {
+					if (!list.at(idx).get("banned")) break;
+				}
+			}
+			return idx;
+		}
+
+		function playTrack(i, list) {
+			ZINA.defaults("ZINA.Player", {"autoplayed": false});
+			if (i === list.length) {
+				if (ZINA.Musicset.Connected && ZINA.Musicset.Connected[ZINA.Player.lastMusicset[0].id]) {
+					var nextMusicset = $("#" + ZINA.Musicset.Connected[ZINA.Player.lastMusicset[0].id]);
+					if (ZINA.defaults("ZINA.Player", "geoBan", false)) {
+						nextMusicset.find(".track-is-unbanned .musicset-track__control").first().trigger("click");
+					} else {
+						nextMusicset.find(".musicset-track:not(.track-is-banned) .musicset-track__control").first().trigger("click");
+					}
+				} else if (ZINA.Player.lastMusicset.hasClass("musicset-autoplayed") && ZINA.autoplay && (ZINA.autoplay.page != ZINA.autoplay.pagesCount)) {
+					window.location.href = ZINA.autoplay.pageName + ZINA.autoplay.next + 'autoplay=1';
+					return;
+				} else if (ZINA.Player.lastMusicset.siblings(".audiotrack-artist-tracks__play-more").length > 0) {
+					$(".audiotrack-artist-tracks__play-more").fadeIn(150);
+				}
+			}
+			if (i < list.length) {
+				list.at(i).play();
+			}
+		}
+
+		player
+			.on("player:tick", function (id, progress) {
+				if (!(info && info.isPlaying())) {
+					if ($(CLS_PLAY, root).length > 0) {
+						var track = $("[data-id='" + id + "']", root),
+							duration = (track.data("limit") > 0) && (track.data("limit") <= track.data("duration")) ? track.data("limit") : track.data("duration");
+						if (progress.rawData) {
+							progress.played = Math.min(100 * progress.played / duration, 100);
+							progress.buffered = Math.min(100 * progress.buffered / duration, 100);
+						}
+						$("div.musicset-progress", root)
+							.find(".musicset-progress__buffered").animate({"width": progress.buffered + "%"}, "fast");
+						if (!$(".musicset-progress__slider", root).hasClass("ui-draggable-dragging")) {
+							$("div.musicset-progress", root)
+								.find(".musicset-progress__level").width((progress.played || 0) + "%").end()
+								.find(".musicset-progress__slider").css("left", ($(".musicset-progress__level", root).width() || 0) + "px");
+						}
+						var played = Math.round((progress.played || 0) / 100 * duration);
+						track.find(".musicset-track__duration").text(duration && (played - duration) <= 0 ? ZINA.Player.formatTime(played - duration) : ZINA.Player.formatTime(duration));
+						if (!preroll && duration - played == 2) {
+							if (info) info.load();
+						}
+					}
+				}
+			})
+			.on("player:pauseAll", function () {
+				list.forEach(function (model) {
+					if (model.get("play")) {
+						model.pause();
+					}
+				});
+			})
+			.on("player:stop", function () {
+				if ($(CLS_PLAY, root).length > 0) {
+					ZINA.Player.lastMusicset = root.find(".musicset-track-list");
+					if (ZINA.Player.lastMusicset.length == 0) {
+						ZINA.Player.lastMusicset = root;
+					}
+					list.forEach(function (model) {
+						if (model.get("play")) {
+							lastPlayed = model.id;
+							model.stop();
+						}
+					});
+				}
+			})
+			.on("player:complete", function () {
+				if (!(info && info.isPlaying())) {
+					var track = list.get(lastPlayed),
+						lastTrack = track && $("[data-id='" + track.id + "']", root);
+
+					setTimeout(function () {
+						if (track) {
+							lastTrack
+								.find(".musicset-track__duration")
+								.text((lastTrack.data('limit') > 0) && (lastTrack.data('limit') <= lastTrack.data('duration'))
+									? ZINA.Player.formatTime(lastTrack.data('limit'))
+									: ZINA.Player.formatTime(lastTrack.data('duration'))
+								);
+						}
+					}, 500);
+
+					if (track && track.id && ZINA.Player.lastMusicset.find("[data-id=" + track.id + "]").length === 1) {
+						var i = findNextTrack(list.indexOf(track) + 1);
+						if (info && !preroll) {
+							setTimeout(function () {
+								info.show().done(function () {
+									playTrack(i, list);
+								});
+							}, 10);
+						} else {
+							playTrack(i, list);
+							ZINA.defaults("ZINA.Player", {"autoplayed": true});
+						}
+					}
+				}
+			})
+			.on("player:reset", function () {
+				lastPlayed = undefined;
+			})
+			.on("player:error", function (msg) {
+				if (msg === "captcha") {
+					if (info && info.isPlaying()) return;
+					var track = $(CLS_PLAY, root);
+					if (track.length === 1) {
+						var trackId = track.data("trackId"),
+							url = ZINA.Player.currentUrl,
+							deferred = $.Deferred(),
+							$dialog;
+						$("#dl-captcha-dialog").remove();
+						this.spinner = new Spinner().spin();
+						$dialog = $(ZINA.el("div#dl-captcha-dialog.modal__window")).appendTo("body").html(this.spinner.el);
+						$dialog.dialog({
+							modal: true, width: 485, resizable: false, dialogClass: "ui-dialog_mobile",
+							title: ZINA.defaults("ZINA.Captcha", "title")
+						}).on("dialogclose", function () {
+							deferred.reject();
+						});
+						$.ajax({
+							url: url,
+							type: "get"
+						}).always(function (jqXHR, textStatus, errorThrown) {
+							function showErrorMessage() {
+								var trackName = track.find(".musicset-track__artist").text();
+								if (trackName.length > 0) {
+									trackName = '<p class="deletedTrack"><span class="deletedTrack__name">' + trackName + '</span>' + " - " + track.find(".musicset-track__track-name").text() + '</p>';
+								}
+
+								var textMessage = 'Произошла неизвестная ошибка воспроизведения. Попробуйте позже.';
+
+								$dialog = $(ZINA.el("div#deleted-dialog.modal__window")).appendTo("body").html('<div class="modal__content">' + trackName + '<p>' + textMessage + '</p></div>');
+								$dialog.dialog({
+									modal: true, width: 370, resizable: false,
+									buttons: {
+										OK: function () {
+											$(this).dialog("close");
+										}
+									}
+								});
+							}
+
+							try {
+								var data = jQuery.parseJSON(jqXHR.responseText);
+								if (data && (data.code === 403 || data.code === 429)) {
+									if (!ZINA.defaults("ZINA.Feedback", "disablePlayerLoggingPlaybackErrors", true)) {
+										try {
+											ZINA.Feedback.send({
+												source: "dlcaptcha",
+												url: location.href,
+												requestMethod: "GET",
+												browser: navigator.userAgent,
+												referrer: document.referrer,
+												text: ZINA.Base64.encode(jqXHR.responseText),
+												stacktrace: JSON.stringify({
+													"flash": document.getElementsByTagName("body")[0].className,
+													"caps": window['Modernizr'] && $.extend({}, window['Modernizr'].audio),
+													"version": ZINA.Player.version
+												})
+											});
+										} catch (ex) {
+										}
+									}
+									$dialog.html($(ZINA.Captcha.render(data, false)).children());
+									$(".captcha-dialog__submit, .captcha-dialog__reload", $dialog).on("click", function () {
+										var validateUrl = data.checkUrl + "?captchaId=" + data.captchaId + "&originalQuery=" +
+											encodeURIComponent(data.originalQuery) + "&value=" + $(".captcha-dialog__value", $dialog).val();
+										ZINA.Player.doPlay(validateUrl, trackId, root);
+										deferred.resolve();
+										$dialog.dialog('close');
+									});
+									$("input.captcha-dialog__value", $dialog).on("keydown", function (e) {
+										if (e.which === 13) {
+											$dialog.find("button.captcha-dialog__submit").trigger("click");
+										}
+									});
+									$dialog.on("click", ".modal__button_close", function () {
+										$dialog.dialog("close");
+										return false;
+									});
+								} else if (data && data.code === 404 && data.message) {
+									var trackName = track.find(".musicset-track__artist").text();
+									if (trackName.length > 0) {
+										trackName = '<p class="deletedTrack"><span class="deletedTrack__name">' + trackName + '</span>' + " - " + track.find(".musicset-track__track-name").text() + '</p>';
+									}
+									$dialog.html('<div class="modal__content">' + trackName + '<p>' + data.message + '</p></div><div class="ui-dialog-buttonpane ui-dialog-buttonpane_artist ui-helper-clearfix"><div class="ui-dialog-buttonset"><button type="button" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">OK</span></button></div></div>');
+									$dialog.find(".ui-button").on("click", function () {
+										$dialog.dialog("close");
+									});
+								} else {
+									$dialog.dialog('close');
+									showErrorMessage();
+								}
+							} catch (ex) {
+								$dialog.dialog('close');
+								showErrorMessage();
+							}
+						});
+						deferred.fail(function () {
+							ZINA.Player.trigger("stop");
+							ZINA.Player.doPause(trackId, root);
+						});
+					}
+				} else {
+					$(".musicset-track-list__error").show();
+				}
+			});
+
+		$(".musicset-progress__gap", root)
+			.on("click", function (e) {
+				var xClick = e.pageX,
+					progress = $(this),
+					x = progress.offset().left,
+					w = progress.width(),
+					posPx = Math.floor(xClick - x),
+					position = 100 * posPx / w;
+					// bufW = parseFloat(progress.find(".musicset-progress__buffered").width() || 0);
+				if (position >= 0 && position <= 100) {
+					player.setPosition(position);
+					list.resumeIfAny();
+				}
+			});
+
+		$(".z-progress__gap_volume", root)
+			.on("click", function (e) {
+				var xClick = e.pageX;
+				var x = parseInt($(this).offset().left);
+				var w = $(this).width();
+				var position = parseInt(100 * (xClick - x) / w);
+				if (position >= 0 && position <= 100) {
+					ZINA.Player.setVolume(position);
+					moveVolumeSlider(position, xClick - x);
+				}
+			});
+
+		$(".musicset-progress", root)
+			.on("mouseover", function (e) {
+				$(".musicset-progress__slider", root).addClass("musicset-progress__slider_trackover");
+			});
+
+		$(".musicset-volume", root)
+			.on("mouseover", function (e) {
+				$(".musicset-volume__slider", root).addClass("musicset-volume__slider_trackover");
+			});
+
+		function getSliderContainment(selector) {
+			var progress = $(selector, root),
+				left = parseInt(progress.css("margin-left")), /* half width of the slider */
+				progressPos = progress.offset();
+			return [progressPos.left - left, progressPos.top, progressPos.left + progress.width() - left, progressPos.top];
+		}
+
+		function updateSliderTime(slider) {
+			var duration = 0;
+			list.forEach(function (model) {
+				if (model.get("pause") || model.get("play")) {
+					duration = model.get('limit') > 0 && model.get('limit') <= model.get('duration') ? model.get('limit') : model.get('duration');
+				}
+			});
+			var gauge = slider.prev(),
+				x = parseInt(slider.css("left")),
+				w = gauge.width(),
+				curTime = Math.round(duration * x / w);
+			$(".musicset-position-level", slider).text(ZINA.Player.formatTime(curTime));
+		}
+
+		$(".musicset-progress__slider", root).draggable({
+			axis: "x",
+			containment: "parent",
+			drag: function (event, ui) {
+				// var bufW = parseFloat($(this).parent().find(".musicset-progress__buffered").width() || 0);
+				// if (ui.position.left > bufW) {
+				// 	ui.position.left = bufW;
+				// }
+				$(".musicset-progress__level", root).width($(this).css("left"));
+				updateSliderTime($(this));
+			},
+			stop: function (e) {
+				var click = new jQuery.Event("click"),
+					gauge = $(this).prev().find(".musicset-progress__bg"),
+					offset = gauge.offset(),
+					left = offset.left,
+					right = left + gauge.width();
+				click.pageX = e.pageX + 4;
+				if (click.pageX < left) click.pageX = left;
+				if (click.pageX > right) click.pageX = right;
+				$(".musicset-progress__gap", root).trigger(click);
+			}
+		})
+			.on("mousedown", function (e) {
+				updateSliderTime($(this));
+				$(this).addClass("ui-draggable-dragging")
+					.draggable("option", "containment", getSliderContainment(".musicset-progress__gap"));
+			})
+			.on("mouseup", function (e) {
+				$(this).removeClass("ui-draggable-dragging");
+			});
+
+		$(".z-progress__slider_volume", root).draggable({
+			axis: "x",
+			containment: "parent",
+			drag: function () {
+				var x = parseInt($(this).css("left"));
+				var w = $(".z-progress__gap_volume", root).width();
+				if (x > w) x = w;
+				var position = parseInt(100 * x / w);
+				moveVolumeSlider(position, x);
+				ZINA.Player.setVolume(position);
+			}
+		})
+			.on("mousedown", function (e) {
+				$(this).addClass("ui-draggable-dragging")
+					.draggable("option", "containment", getSliderContainment(".z-progress__gap_volume"));
+			})
+			.on("mouseup", function (e) {
+				$(this).removeClass("ui-draggable-dragging");
+			});
+
+		function addTitlesToShortenedLinks() {
+			$(".musicset-track__link:visible", root).each(function () {
+				var a = $(this);
+				if (a[0].scrollWidth > a[0].offsetWidth + 1) {
+					a.attr("title", a.text().trim());
+				} else {
+					a.removeAttr("title");
+					a.addClass("link-without-title");
+				}
+			});
+		}
+
+		// это не работает, но если сильно приспичит,
+		// то можно подключить этот плагин: https://github.com/cowboy/jquery-resize
+		root.on("resize", addTitlesToShortenedLinks);
+		addTitlesToShortenedLinks();
+
+		if (!boundOnce) {
+			boundOnce = true;
+
+			ZINA.defaults("ZINA.Feedback", {
+				"disablePlayerLoggingPlaybackErrors": $("meta[name=zina-player-disable-logging]").attr("content")
+			});
+			if (info) {
+				if ($("meta[name=zina-player-audioinfo-preroll]").attr("content") == "true") {
+					preroll = true;
+					prerollTimeout = parseInt($("meta[name=zina-player-audioinfo-preroll-timeout]").attr("content"), 10);
+				}
+			}
+			$('.musicset__control').on('click', function () {
+				var firstStart = true;
+				list.forEach(function (model) {
+					if (model.get("pause")) {
+						model.resume();
+						firstStart = false;
+					} else if (model.get("play")) {
+						firstStart = false;
+						model.pause();
+					}
+				});
+				if (firstStart) {
+					var i = findNextTrack(0);
+					if (i < list.length) {
+						list.models[i].play();
+						lastPlayed = list.models[i].id;
+					}
+				}
+			});
+
+			$('.musicset__prev').on('click', function () {
+				var i;
+				list.forEach(function (model) {
+					if (model.get("pause") || model.get("play")) {
+						i = list.indexOf(model);
+					}
+				});
+				if (i > 0) {
+					i--;
+				} else {
+					i = list.length - 1;
+				}
+				i = findPrevTrack(i);
+				if (i >= 0) {
+					list.at(i).play();
+				}
+			});
+
+			$('.musicset__next').on('click', function () {
+				var i;
+				list.forEach(function (model) {
+					if (model.get("pause") || model.get("play")) {
+						i = list.indexOf(model);
+					}
+				});
+				if (i < list.length - 1) {
+					i++;
+				} else {
+					i = 0;
+				}
+				i = findNextTrack(i);
+				if (i < list.length) {
+					list.at(i).play();
+				}
+			});
+		}
+
+		var autoplay = window.location.search.match(/autoplay=(\d+)/);
+		if ($.isArray(autoplay)) {
+			var musicset = root.find(".musicset-track-list");
+			if (musicset.length == 0) {
+				musicset = root;
+			}
+			if (musicset.hasClass("musicset-autoplayed")) {
+				var trackId = window.location.hash.match(/#(\d+)$/);
+				if ($.isArray(trackId)) {
+					list.forEach(function (model) {
+						if (model.id == trackId[1]) {
+							model.play();
+							model.moveIntoView();
+						}
+					});
+				} else {
+					var i = findNextTrack(0);
+					if (i < list.length) {
+						list.models[i].play();
+					}
+				}
+			}
+		}
+	}
+
+	function initPage(root, options) {
+		var player = new ZINA.Musicset.Player();
+		player.initPromise.done(function () {
+			var info = null;
+			if (ZINA.Musicset.AudioInfo) {
+				info = new ZINA.Musicset.AudioInfo();
+			}
+			createList(root, player, info, options);
+
+			var left = $(".z-progress__gap_volume").width() * ZINA.Player.volume / 100;
+			moveVolumeSlider(ZINA.Player.volume, left);
+		});
+	}
+
+	ZINA.namespace("ZINA.Musicset", {
+		init: function (root, options) {
+			root.find(".musicset-track-list")
+				.append(ZINA.el("div.musicset-controls.hidden", [
+					ZINA.el("div.musicset-progress", [
+						ZINA.el("div.musicset-progress__gap", [
+							ZINA.el("div.musicset-progress__bg", [
+								ZINA.el("div.musicset-progress__buffered"),
+								ZINA.el("div.musicset-progress__level")])]),
+						ZINA.el("div.musicset-progress__slider", [
+							ZINA.el("div.musicset-position.musicset-position_time", [
+								ZINA.el("span.musicset-position-level"),
+								ZINA.el("div.audiotrack-icon.audiotrack-icon_position")])])]),
+					ZINA.el("div.z-progress.z-progress_volume.musicset-volume", [
+						ZINA.el("div.z-progress__gap.z-progress__gap_volume", [
+							ZINA.el("div.z-progress__bg.z-progress__bg_volume"),
+							ZINA.el("div.z-progress__buffered.z-progress__buffered_volume"),
+							ZINA.el("div.z-progress__level.z-progress__level_volume")]),
+						ZINA.el("div.z-progress__slider.z-progress__slider_volume.musicset-volume__slider", [
+							ZINA.el("div.z-progress__tooltip", [
+								ZINA.el("span.z-progress__tooltip-text.z-progress__tooltip-text_volume", ['100']),
+								ZINA.el("div.audiotrack-icon.audiotrack-icon_position")])])])]));
+			options = options || {};
+			initPage(root, options);
+		}
+	});
+
+
+}());

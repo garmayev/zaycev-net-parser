@@ -1,0 +1,1 @@
+document.write('<div id="adfox_154409958972963878"><\/div>\n<script>\n    window.Ya.adfoxCode.create({\n        ownerId: 276021,\n        containerId: \'adfox_154409958972963878\',\n        params: {\n            pp: \'g\',\n            ps: \'dbmv\',\n            p2: \'gbyx\'\n        }\n    });\n<\/script>');

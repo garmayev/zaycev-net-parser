@@ -1,0 +1,222 @@
+(function (Backbone) {
+
+	var Track = Backbone.Model.extend({
+		defaults: {
+			duration: 0,
+			play: false,
+			pause: false,
+			banned: false,
+			unbanned: false
+		},
+		initialize: function () {
+			this.on("change:play", function () {
+				var playStatus = this.get("play");
+				this.set("pause", false, {"silent": true});
+				this[playStatus ? "emitPlay" : "emitStop"]();
+			});
+			this.on("change:pause", function () {
+				this[this.get("pause") ? "emitPause": "emitResume"]();
+			});
+		},
+		play: function (silent) {
+			$(".musicset-progress__slider:not(.ui-draggable-dragging)").removeClass("musicset-progress__slider_trackover");
+			$(".musicset-volume__slider:not(.ui-draggable-dragging)").removeClass("musicset-volume__slider_trackover");
+			return this.set("play", true, {"silent": !!silent})
+				.trigger("refreshView");
+		},
+		stop: function (silent) {
+			return this.set("play", false, {"silent": !!silent})
+				.trigger("refreshView");
+		},
+		pause: function (silent) {
+			return this.set("pause", true, {"silent": !!silent})
+				.trigger("refreshView");
+		},
+		resume: function (silent) {
+			return this.set("pause", false, {"silent": !!silent})
+				.trigger("refreshView");
+		},
+		emitPlay: function () {
+			return this.trigger("playTrack", this);
+		},
+		emitStop: function () {
+			return this.trigger("stopTrack", this);
+		},
+		emitPause: function () {
+			return this.trigger("pauseTrack", this);
+		},
+		emitResume: function () {
+			return this.trigger("resumeTrack", this);
+		},
+		moveIntoView: function () {
+			return this.trigger("moveIntoView", this);
+		}
+	});
+
+	var TrackView = Backbone.View.extend({
+
+		events: {
+			"click .musicset-track__control": function () {
+				if (!this.$el.hasClass('track-is-banned')) {
+					var playStatus = this.model.get("play");
+					var pauseStatus = this.model.get("pause");
+					if (playStatus) {
+						this.model.set("pause", !pauseStatus);
+					} else {
+						ZINA.Player.stop();
+						this.model.play();
+					}
+					this.render();
+					$(".musicset-progress__slider").addClass("musicset-progress__slider_trackover");
+					$(".musicset-volume__slider").addClass("musicset-volume__slider_trackover");
+				}
+			},
+			"mouseenter": function () {
+				var playStatus = this.model.get("play");
+				var pauseStatus = this.model.get("pause");
+				$(".musicset-progress__slider:not(.ui-draggable-dragging)").toggleClass("musicset-progress__slider_trackover", playStatus || pauseStatus);
+				$(".musicset-volume__slider:not(.ui-draggable-dragging)").toggleClass("musicset-volume__slider_trackover", playStatus || pauseStatus);
+			},
+			"mouseleave": function () {
+				$(".musicset-progress__slider:not(.ui-draggable-dragging)").removeClass("musicset-progress__slider_trackover");
+				$(".musicset-volume__slider:not(.ui-draggable-dragging)").removeClass("musicset-volume__slider_trackover");
+			},
+			"ban": function () {
+				this.model.set("banned", true);
+			},
+			"unban": function () {
+				this.model.set("unbanned", true);
+			}
+		},
+
+		initialize: function () {
+			var view = this;
+			_.bindAll(this, "render");
+			this.model.on("refreshView", this.render);
+			this.model.on("playTrack", function () {
+				var root = this.$el.closest(".musicset-track-list:not(.musicset-track-list_artist)"),
+						pos = this.$el.position(),
+						h = this.$el.height(),
+						progressH = $("div.musicset-progress__bg").height();
+				pos.top = pos.top + h - progressH - 3;
+				setTimeout(function () {
+					$(".musicset-progress", root).css(pos);
+					$(".musicset-volume", root).css(pos);
+					$(".musicset-controls", root).removeClass("hidden");
+				}, 100);
+				$(".musicset-progress")
+					.find(".musicset-progress__buffered, .musicset-progress__level")
+					.width(0);
+			}, this);
+			this.model.on("stopTrack", function () {
+				$(".musicset-controls").addClass("hidden");
+			}, this);
+			this.model.on("moveIntoView", function () {
+				var track = this.$el;
+				$(document).scrollTop(track.offset().top);
+				setTimeout(function () {
+					var header = $(".stick").height();
+					if (header) {
+						$(document).scrollTop(track.offset().top - header);
+					}
+				}, 0);
+			}, this);
+		},
+
+		render: function () {
+			this.$el
+				.toggleClass("musicset-track_play", this.model.get("play"))
+				.toggleClass("musicset-track_pause", this.model.get("pause"));
+			$('.musicset__control')
+				.toggleClass("musicset__control_pause", this.model.get("play"))
+				.toggleClass("musicset__control_play", this.model.get("pause"));
+			if (!this.model.get("play")) {
+				var duration = this.model.get('limit') > 0 && this.model.get('limit') <= this.model.get("duration")
+					? this.model.get('limit')
+					: this.model.get("duration");
+				this.$el.find(".musicset-track__duration")
+						.text(ZINA.Player.formatTime(duration));
+			}
+		}
+
+	}, {
+		createData: function ($el) {
+			return {
+				id: $el.data("id"),
+				url: $el.data("url"),
+				duration: $el.data("duration"),
+				limit: $el.data('limit'),
+				banned: $el.hasClass("track-is-banned"),
+				unbanned: $el.hasClass("track-is-unbanned")
+			}
+		},
+		findViews: function ($container) {
+			return $container.find(".musicset-track");
+		},
+		findView: function ($container, id) {
+			var $el = TrackView.findViews($container);
+			return $el.filter(function () {
+				return $(this).data("id") == id;
+			});
+		}
+	});
+
+
+	var List = Backbone.Collection.extend({
+		model: Track,
+
+		initialize: function () {
+			var collection = this;
+			this.on("playTrack", function (model) {
+				var id = model.id;
+				collection.forEach(function (model) {
+					if (model.id != id) {
+						model.stop();
+					}
+				});
+			});
+			return this;
+		},
+
+		resumeIfAny: function () {
+			this.forEach(function (model) {
+				if (model.get("play") && model.get("pause")) {
+					model.set("pause", false);
+					model.play(false);
+				}
+			});
+		}
+	});
+
+	var ListView = Backbone.View.extend({
+		initialize: function () {
+			_.bindAll(this, "addItem");
+			this.collection.on("add", this.addItem);
+		},
+
+		addItem: function (model) {
+			var itemView = new TrackView({
+				model: model,
+				el: TrackView.findView(this.$el, model.id)
+			});
+			return this;
+		}
+	}, {
+		createData: function ($el) {
+			var data = [];
+			TrackView.findViews($el).each(function () {
+				data.push(TrackView.createData($(this)));
+			});
+			return data;
+		}
+	});
+
+
+	ZINA.namespace("ZINA.Musicset", {
+		Track: Track,
+		TrackView: TrackView,
+		List: List,
+		ListView: ListView
+	});
+
+}(Backbone));
