@@ -1,4 +1,4 @@
-var allArtists = '';
+var allArtists = [];
 function getData(item) {
 	var xhr = new XMLHttpRequest();
 	xhr.open("GET", item.getAttribute('data-url'), false);
@@ -16,16 +16,19 @@ function getAllArtists(page, url = '/artist/letter-0.html') {
 	pna = url.split("/"),
 	pageName = pna.pop().replace(/\.html$/, "-more.html");
 	result = '';
-	console.log(pageName+'?page='+page);
 	var xhr = new XMLHttpRequest();
 	xhr.open("GET", '/artist/'+pageName+'?page='+page, false);
 	xhr.send();
 	parser = new DOMParser();
 	doc = parser.parseFromString(xhr.response, "text/html");
-	if ( (doc.querySelectorAll('.error').length == 0 ) && (page < 5) ) {
-		result = getAllArtists(page+1, url);
-		allArtists += result;
-		return xhr.response;
+	artists = doc.querySelectorAll('li[itemscope=itemscope] div.artist-item-info__top a');
+	for (var item in artists) {
+		if ((typeof artists[item] === 'object')) {
+			allArtists.push({ 'name': artists[item].innerHTML, 'href': artists[item].getAttribute('href') });
+		}
+	}
+	if ( (doc.querySelectorAll('.error').length == 0 ) ) {
+		getAllArtists(page+1, url);
 	}
 }
 
@@ -45,8 +48,8 @@ chrome.extension.onMessage.addListener(function(request, sender, callback){
 			var letterList = document.querySelectorAll('a.alphabet__item.alphabet__link');
 			getAllArtists(1);
 			console.log(allArtists);
-			for (var letter in letterList) {
-			}
+			callback(allArtists);
+			allArtists = [];
 		break;
 	}
 });

@@ -1,5 +1,5 @@
-function toServer(data, callback) {
-	fetch('http://localhost/', {
+function toServer(url, data, callback) {
+	fetch(url, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
@@ -18,14 +18,15 @@ $(function () {
 	$('a.getTracks').on('click', function () {
 		chrome.tabs.getSelected(null, function(tab){
 			chrome.tabs.sendMessage(tab.id, {cmd: 'getAllOnPage'}, function (response) {
-				toServer(JSON.stringify(response));
+				toServer('http://test.local/?action=getAllOnPage', JSON.stringify(response));
 			})
 		});
 	});
 	$('a.getByArtist').on('click', function () {
 		chrome.tabs.getSelected(null, function(tab){
 			chrome.tabs.sendMessage(tab.id, {cmd: 'getByArtist'}, function (response) {
-				toServer(JSON.stringify(response));
+				console.log(response);
+				toServer('http://test.local/?action=getByArtist', JSON.stringify(response));
 			})
 		});
 	})
