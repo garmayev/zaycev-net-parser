@@ -1,0 +1,31 @@
+html, body {
+	font-family: 'Source Sans Pro', sans-serif;
+	height: 100%;
+	padding: 0;
+	margin: 0;
+}
+.tracklist {
+	width: 50%;
+}
+.track {
+	text-decoration: none;
+	display: block;
+	width: 100%;
+	margin: 3px 0;
+}
+.track:hover {
+	background: rgba(100, 179, 255, .5);
+}
+.track:hover .duration {
+	display: block;
+}
+.byArtist {
+	font-weight: bold;
+}
+.byArtist:after {
+	content: ' - ';
+}
+.duration {
+	float: right;
+	display: none;
+}

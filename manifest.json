@@ -4,12 +4,15 @@
 	"description": "Парсер для сайта zaycev.net",
 	"version": "0.0.1",
 	"content_scripts": [{
-		"matches": ["*://zaycev.net/*", "*://test.local/"],
+		"matches": ["*://zaycev.net/*", "*://test.local/", "*://localhost/"],
 		"css": ["content/content.css"],
 		"js": ["content/content.js", "content/module.js"]
 	}],
+	"background": {
+		"scripts": ["popup/background.js"]
+	},
   	"browser_action": {
 		"default_popup": "popup/popup.html"
 	},
-	"permissions": ["http://zaycev.net/", "http://test.local", "activeTab"]
+	"permissions": ["http://zaycev.net/", "http://test.local", "*://localhost/", "activeTab"]
 }
