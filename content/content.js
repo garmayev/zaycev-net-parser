@@ -1,22 +1,21 @@
 var allArtists = [];
 function getData(item) {
 	// console.log(item);
-	var xhr = new XMLHttpRequest();
-	xhr.open("GET", item.getAttribute('data-url'), true);
-	xhr.onreadystatechange = function() {
-		if (xhr.readyState == 4) {
-			if(xhr.status == 200) {
-				var result = {
-					url: JSON.parse(xhr.response).url,
-					artist: item.querySelector('div[itemprop=byArtist] a').innerHTML,
-					title: item.querySelector('div[itemprop=name] a').innerHTML,
-					duration: item.getAttribute('data-duration')
-				}
-				chrome.extension.sendMessage({type: 'ADD_TRACK', details: {data: result}});
-			}
+	fetch(item.getAttribute('data-url'), {
+		method: 'GET'
+	}).then(function (response) {
+		// console.log(response);
+		var result = {
+			url: response.url,
+			artist: item.querySelector('div[itemprop=byArtist] a').innerHTML,
+			title: item.querySelector('div[itemprop=name] a').innerHTML,
+			duration: item.getAttribute('data-duration')
 		}
-	};
-	xhr.send();
+		chrome.extension.sendMessage({type: 'ADD_TRACK', uri: '/api/track/add', details: {data: result}});
+
+	}).catch(function (error) {
+		console.log(error)
+	});
 }
 
 function getAllArtists(page, url = '/artist/letter-0.html') {

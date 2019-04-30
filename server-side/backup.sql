@@ -45,34 +45,6 @@ INSERT INTO `artist` VALUES (1,'50 Cent','','0000-00-00','',''),(2,'Eazy-E','','
 UNLOCK TABLES;
 
 --
--- Table structure for table `artist_track`
---
-
-DROP TABLE IF EXISTS `artist_track`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `artist_track` (
-  `artist_id` int(11) NOT NULL,
-  `track_id` int(11) NOT NULL,
-  PRIMARY KEY (`artist_id`,`track_id`),
-  KEY `artist_id` (`artist_id`),
-  KEY `track_id` (`track_id`),
-  CONSTRAINT `artist_track_ibfk_2` FOREIGN KEY (`track_id`) REFERENCES `track` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `artist_track_ibfk_1` FOREIGN KEY (`artist_id`) REFERENCES `artist` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `artist_track`
---
-
-LOCK TABLES `artist_track` WRITE;
-/*!40000 ALTER TABLE `artist_track` DISABLE KEYS */;
-INSERT INTO `artist_track` VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(2,4),(3,4),(4,4),(5,5);
-/*!40000 ALTER TABLE `artist_track` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `track`
 --
 
@@ -107,5 +79,33 @@ UNLOCK TABLES;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+--
+-- Table structure for table `artist_track`
+--
+
+DROP TABLE IF EXISTS `artist_track`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `artist_track` (
+  `artist_id` int(11) NOT NULL,
+  `track_id` int(11) NOT NULL,
+  PRIMARY KEY (`artist_id`,`track_id`),
+  KEY `artist_id` (`artist_id`),
+  KEY `track_id` (`track_id`),
+  CONSTRAINT `artist_track_ibfk_2` FOREIGN KEY (`track_id`) REFERENCES `track` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `artist_track_ibfk_1` FOREIGN KEY (`artist_id`) REFERENCES `artist` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `artist_track`
+--
+
+LOCK TABLES `artist_track` WRITE;
+/*!40000 ALTER TABLE `artist_track` DISABLE KEYS */;
+INSERT INTO `artist_track` VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(2,4),(3,4),(4,4),(5,5);
+/*!40000 ALTER TABLE `artist_track` ENABLE KEYS */;
+UNLOCK TABLES;
 
 -- Dump completed on 2019-04-29 14:32:47

@@ -17,9 +17,7 @@ function toServer(url, data, callback) {
 $(function () {
  	$('a.getTracks').on('click', function () {
 		chrome.tabs.getSelected(null, function(tab){
-			chrome.tabs.sendMessage(tab.id, {cmd: 'getAllOnPage'}, function (response) {
-				// toServer('http://test.local/?action=getAllOnPage', JSON.stringify(response));
-			})
+			chrome.tabs.sendMessage(tab.id, {cmd: 'getAllOnPage'})
 		});
 	});
 	$('a.getByArtist').on('click', function () {
